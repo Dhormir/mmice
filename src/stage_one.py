@@ -141,7 +141,7 @@ def get_stage_one_masker(args, predictor):
 
     logger.info(f"Creating masker of type: {args.mask.mask_type}")
     editor_tokenizer_wrapper = PretrainedTransformerTokenizer(
-            "t5-base", max_length=args.model.model_max_length)
+            "google/mt5-small", max_length=args.model.model_max_length)
     if args.mask.mask_type == "random":
         logger.info("Loading Random masker...")
         masker = RandomMasker(None, editor_tokenizer_wrapper, 
@@ -163,7 +163,7 @@ def get_task_data(args, dr):
     if args.meta.task == 'race':
         strings = dr.get_inputs('train')
         labels = [int(s['answer_idx']) for s in strings]
-    elif args.meta.task == "newsgroups" or args.meta.task == "imdb":
+    elif args.meta.task in ["newsgroups", "imdb", "chileanhate"]:
         strings, labels = dr.get_inputs('train', return_labels=True)
     
     string_indices = np.array(range(len(strings)))
@@ -192,6 +192,7 @@ def run_train_editor(predictor, dr, args):
     editor_tokenizer, editor_model = load_base_t5(
             max_length=args.model.model_max_length)
     device = get_device()
+    print(f'Device: {device}')
     editor_model = editor_model.to(device)
 
     task_dir = os.path.join(args.meta.results_dir, args.meta.task)
@@ -231,9 +232,7 @@ def run_train_editor(predictor, dr, args):
             lr=args.train.lr)
 
     # Load original task data
-    train_inputs, val_inputs, train_labels, val_labels = \
-            get_task_data(args, dr)
-
+    train_inputs, val_inputs, train_labels, val_labels = get_task_data(args, dr)
     # Get datasets for Editor training
     train_dataset, val_dataset = get_datasets(predictor, dr, masker, 
             data_dir, train_inputs, val_inputs, train_labels, val_labels, 

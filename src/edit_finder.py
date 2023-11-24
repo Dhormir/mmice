@@ -21,6 +21,7 @@ import difflib
 
 from transformers import T5Tokenizer, T5Model, T5Config
 from transformers import T5ForConditionalGeneration
+from transformers import MT5ForConditionalGeneration, MT5Config
 
 from src.masker import Masker, RandomMasker, GradientMasker
 from src.utils import *
@@ -49,11 +50,11 @@ def get_max_instance(instance_candidates, contrast_pred_idx):
 class EditEvaluator():
     def __init__(
         self,
-        fluency_model_name = "t5-base",
+        fluency_model_name = "google/mt5-small",
         fluency_masker = RandomMasker(None, SpacyTokenizer(), 512) 
     ):
         self.device = get_device()
-        self.fluency_model = T5ForConditionalGeneration.from_pretrained(
+        self.fluency_model = MT5ForConditionalGeneration.from_pretrained(
                 fluency_model_name).to(self.device)
         self.fluency_tokenizer = T5Tokenizer.from_pretrained(
                 fluency_model_name)
@@ -158,10 +159,10 @@ class EditFinder():
         self,
         predictor, 
         editor, 
-        beam_width = 3, 
+        beam_width = 6, 
         search_method = "binary", 
-        max_mask_frac = 0.5, 
-        max_search_levels = 10, 
+        max_mask_frac = 0.6, 
+        max_search_levels = 16, 
         verbose = True 
     ):
         self.predictor = predictor
@@ -344,7 +345,10 @@ class EditFinder():
         beam_width = self.beam_width
 
         # Get truncated editable part of input
+        print('-' * 60)
+        print(orig_input)
         editable_seg = self.editor.get_editable_seg_from_input(orig_input)
+        print(orig_input)
         editable_seg = self.editor.truncate_editable_segs(
                                         [editable_seg], inp=orig_input)[0]
 

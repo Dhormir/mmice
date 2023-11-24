@@ -132,10 +132,10 @@ class Masker():
             end_token_idx = span[-1]
 
             # If last span tok is last t5 tok, heuristically set char end idx
-            if span_char_end is None and end_token_idx == len(editor_toks)-1:
+            if span_char_end is None and end_token_idx == len(editor_toks)-1 and span_char_start is not None:
                 span_char_end = span_char_start + 1
 
-            if not span_char_end > span_char_start:
+            elif (span_char_end is None and span_char_start is None) or span_char_end <= span_char_start:
                 raise MaskError
                 
             label = Masker._get_sentinel_token(span_idx) + \

@@ -69,20 +69,17 @@ class StageOneDataset(Dataset):
             error_msg = f"target_label must be in {target_label_options} "
             error_msg += f"but got '{target_label}'"
             raise ValueError(error_msg)
-        
+
         masked_strings, targets = [], []
-        labels_to_ints = get_labels_to_ints(predictor) 
+        labels_to_ints = get_labels_to_ints(predictor)
 
         num_errors = 0
         iterator = enumerate(zip(orig_inputs, orig_labels))
         for i, (orig_inp, orig_label) in tqdm(iterator, total=len(orig_inputs)):
-            masker.mask_frac = np.random.choice(mask_fracs, 1, 
-                    p=mask_frac_probs)[0] 
-
-            pred = predictor.predict(orig_inp)
-            pred_label = pred['label']
-
-            label_to_use = pred_label if target_label == "pred" else orig_label
+            masker.mask_frac = np.random.choice(mask_fracs,
+                                                1,
+                                                p=mask_frac_probs)[0]
+            label_to_use = predictor.predict(orig_inp)['label'] if target_label == "pred" else orig_label
             label_idx = labels_to_ints[label_to_use]
 
             predictor_tokenized = get_predictor_tokenized(predictor, orig_inp)
@@ -90,7 +87,7 @@ class StageOneDataset(Dataset):
             try:
                 _, word_indices_to_mask, masked_input, target = \
                         masker.get_masked_string(orig_inp, label_idx, 
-                                predictor_tok_end_idx=len(predictor_tokenized))
+                                predic_tok_end_idx=len(predictor_tokenized))
                 masked_string = format_classif_input(masked_input, label_to_use) 
                 masked_strings.append(masked_string)
                 targets.append(target)
@@ -154,13 +151,13 @@ class RaceStageOneDataset(StageOneDataset):
                 if editable_key == "article":
                     article_tok = get_predictor_tokenized(predictor, 
                             orig_inp["article"])
-                    predictor_tok_end_idx = min(len(article_tok), 
+                    predic_tok_end_idx = min(len(article_tok), 
                             length_lst[label_idx])
                     _, word_indices_to_mask, masked_article, target = \
                             masker.get_masked_string(
                                 orig_inp["article"], label_idx, 
                                 labeled_instance=instance, 
-                                predictor_tok_end_idx=predictor_tok_end_idx
+                                predic_tok_end_idx=predic_tok_end_idx
                                 )
                     question = orig_inp["question"]
                     article = masked_article
@@ -170,14 +167,14 @@ class RaceStageOneDataset(StageOneDataset):
                 elif editable_key == "question":
                     question_tok = get_predictor_tokenized(predictor, 
                             orig_inp["question"]) 
-                    predictor_tok_end_idx = length_lst[label_idx] + \
+                    predic_tok_end_idx = length_lst[label_idx] + \
                             len(question_tok)
                     _, word_indices_to_mask, masked_question, target = \
                             masker.get_masked_string(
                                 orig_inp["question"], label_idx, 
                                 labeled_instance=instance, 
                                 predictor_tok_start_idx=length_lst[label_idx], 
-                                predictor_tok_end_idx=predictor_tok_end_idx
+                                predic_tok_end_idx=predic_tok_end_idx
                             )
                     question = masked_question
                     article = orig_inp["article"]

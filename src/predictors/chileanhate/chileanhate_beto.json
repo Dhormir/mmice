@@ -1,17 +1,17 @@
 {
     "dataset_reader": {
-        "type": "imdb",
+        "type": "chileanhate",
         "token_indexers": {
             "tokens": {
                 "type": "pretrained_transformer",
                 "max_length": 512,
-                "model_name": "xlm-roberta-base"
+                "model_name": "dccuchile/bert-base-spanish-wwm-uncased"
             }
         },
         "tokenizer": {
             "type": "pretrained_transformer",
             "max_length": 512,
-            "model_name": "xlm-roberta-base"
+            "model_name": "dccuchile/bert-base-spanish-wwm-uncased"
         }
     },
     "model": {
@@ -20,14 +20,14 @@
         "seq2vec_encoder": {
             "type": "bert_pooler",
             "dropout": 0.1,
-            "pretrained_model": "xlm-roberta-base"
+            "pretrained_model": "dccuchile/bert-base-spanish-wwm-uncased"
         },
         "text_field_embedder": {
             "token_embedders": {
                 "tokens": {
                     "type": "pretrained_transformer",
                     "max_length": 512,
-                    "model_name": "xlm-roberta-base"
+                    "model_name": "dccuchile/bert-base-spanish-wwm-uncased"
                 }
             }
         }
