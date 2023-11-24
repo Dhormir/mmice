@@ -65,7 +65,7 @@ def load_editor_weights(editor_model, editor_path):
     if os.path.isdir(editor_path):
         editor_path = os.path.join(editor_path, "best.pth")
         if not os.path.exists(editor_path):
-            raise NotImplementedError(f"If directory given for editor_path, \
+            raise NotImplementedError("If directory given for editor_path, \
                     it must contain a 'best.pth' file but found none in given \
                     dir. Please give direct path to file containing weights.")
     logger.info(f"Loading Editor weights from: {editor_path}")
@@ -78,7 +78,7 @@ def load_models(args):
     logger.info("Loading models...")
     predictor = load_predictor(args.meta.task)
     editor_tokenizer_wrapper = PretrainedTransformerTokenizer(
-            't5-base', max_length=args.model.model_max_length)
+            "google/mt5-small", max_length=args.model.model_max_length)
     editor_tokenizer, editor_model = load_base_t5(
                        max_length=args.model.model_max_length)
     device = get_device()
@@ -163,7 +163,7 @@ def run_edit_test(args):
     np.random.shuffle(input_indices)
 
     # Find edits and write to file
-    with open(out_file, "w") as csv_file:
+    with open(out_file, "w", encoding='utf-8') as csv_file:
         fieldnames = ["data_idx", "sorted_idx", "orig_pred", "new_pred", 
                 "contrast_pred", "orig_contrast_prob_pred", 
                 "new_contrast_prob_pred", "orig_input", "edited_input", 
@@ -185,34 +185,33 @@ def run_edit_test(args):
                         edit_evaluator=edit_evaluator)
 
                 torch.cuda.empty_cache()
-                sorted_list = edited_list.get_sorted_edits() 
+                sorted_list = edited_list.get_sorted_edits()
+                end_time = time.time()
+
+                duration = end_time - start_time
+                for s_idx, s in enumerate(sorted_list):
+                    writer.writerow([i, s_idx, edited_list.orig_label, 
+                        s['edited_label'], edited_list.contrast_label, 
+                        edited_list.orig_contrast_prob, s['edited_contrast_prob'], 
+                        edited_list.orig_input, s['edited_input'], 
+                        edited_list.orig_editable_seg, 
+                        s['edited_editable_seg'], s['minimality'], 
+                        s['num_edit_rounds'], s['mask_frac'], duration, error])
+                    csv_file.flush()
+                if sorted_list == []:
+                    writer.writerow([i, 0, edited_list.orig_label, 
+                        None, edited_list.contrast_label, 
+                        edited_list.orig_contrast_prob, None, 
+                        edited_list.orig_input, None, 
+                        edited_list.orig_editable_seg, 
+                        None, None, None, None, duration, error]) 
+                    csv_file.flush()
+                    meta_f.flush()
 
             except Exception as e:
                 logger.info("ERROR: ", e)
                 error = True
                 sorted_list = []
-
-            end_time = time.time()
-
-            duration = end_time - start_time
-            for s_idx, s in enumerate(sorted_list):
-                writer.writerow([i, s_idx, edited_list.orig_label, 
-                    s['edited_label'], edited_list.contrast_label, 
-                    edited_list.orig_contrast_prob, s['edited_contrast_prob'], 
-                    edited_list.orig_input, s['edited_input'], 
-                    edited_list.orig_editable_seg, 
-                    s['edited_editable_seg'], s['minimality'], 
-                    s['num_edit_rounds'], s['mask_frac'], duration, error])
-                csv_file.flush()
-            if sorted_list == []:
-                writer.writerow([i, 0, edited_list.orig_label, 
-                    None, edited_list.contrast_label, 
-                    edited_list.orig_contrast_prob, None, 
-                    edited_list.orig_input, None, 
-                    edited_list.orig_editable_seg, 
-                    None, None, None, None, duration, error]) 
-                csv_file.flush()
-                meta_f.flush()
 
     csv_file.close()
     meta_f.close()

@@ -93,12 +93,12 @@ class ImdbDatasetReader(DatasetReader):
     def get_inputs(self, file_path, return_labels = False):
         np.random.seed(self.random_seed)
         
-        path_lst = list(self.get_path(file_path))
+        path_lst = list(self.get_path(file_path))[:2000]
         strings = [None] * len(path_lst)
         labels = [None] * len(path_lst)
         for i, p in enumerate(path_lst):
             labels[i] = get_label(str(p)) 
-            strings[i] = clean_text(p.read_text(), 
+            strings[i] = clean_text(p.read_text(encoding='utf-8'), 
                                     special_chars=["<br />", "\t"])
         if return_labels:
             return strings, labels
@@ -117,7 +117,7 @@ class ImdbDatasetReader(DatasetReader):
         for p in path:
             label = get_label(str(p))
             yield self.text_to_instance(
-                    clean_text(p.read_text(), special_chars=["<br />", "\t"]), 
+                    clean_text(p.read_text(encoding='utf-8'), special_chars=["<br />", "\t"]), 
                     label)
 
     def text_to_instance(

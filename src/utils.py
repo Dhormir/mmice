@@ -1,5 +1,6 @@
 from transformers import T5Tokenizer, T5Model, T5ForConditionalGeneration, \
-        T5Config, T5TokenizerFast 
+        T5Config, T5TokenizerFast
+from transformers import MT5ForConditionalGeneration, MT5Config
 from allennlp.predictors import Predictor, TextClassifierPredictor
 from allennlp_models.classification \
         import StanfordSentimentTreeBankDatasetReader
@@ -27,6 +28,7 @@ from munch import Munch
 
 # local imports
 from src.predictors.imdb.imdb_dataset_reader import ImdbDatasetReader
+from src.predictors.chileanhate.chileanhate_dataset_reader import ChileanHateDatasetReader
 from src.predictors.newsgroups.newsgroups_dataset_reader \
         import NewsgroupsDatasetReader
 from src.predictors.race.race_dataset_reader import RaceDatasetReader
@@ -47,7 +49,7 @@ def get_shared_parsers():
     meta_parser.add_argument("-task", required=True, 
             help='Name of task. Currently, only RACE, IMDB, \
                     and Newsgroups are supported.', 
-            choices=['race', 'imdb', 'newsgroups'])
+            choices=['race', 'imdb', 'newsgroups', 'chileanhate'])
     meta_parser.add_argument("-results_dir", default="results", 
             help='Results dir. Where to store results.')
 
@@ -69,7 +71,7 @@ def get_stage_one_parsers():
     """ Helper function to get parsers for Stage 1. """
 
     train_parser = argparse.ArgumentParser()
-    train_parser.add_argument("-train_batch_size", default=4, type=int)
+    train_parser.add_argument("-train_batch_size", default=1, type=int)
     train_parser.add_argument("-val_batch_size", default=1, type=int)
     train_parser.add_argument("-num_epochs", default=10, type=int)
     train_parser.add_argument("-lr", default=5e-5, type=float)
@@ -172,7 +174,7 @@ def write_args(args_path, args):
 ####################################################################
 
 def get_dataset_reader(task, predictor):
-    task_options = ["imdb", "race", "newsgroups"]
+    task_options = ["imdb", "race", "newsgroups", "chileanhate"]
     if task not in task_options:
         raise NotImplementedError(f"Task {task} not implemented; \
                 must be one of {task_options}")
@@ -186,9 +188,13 @@ def get_dataset_reader(task, predictor):
         return NewsgroupsDatasetReader(
                 token_indexers=predictor._dataset_reader._token_indexers, 
                 tokenizer=predictor._dataset_reader._tokenizer)
+    elif task == "chileanhate":
+        return ChileanHateDatasetReader(
+                token_indexers=predictor._dataset_reader._token_indexers, 
+                tokenizer=predictor._dataset_reader._tokenizer)
 
 def format_classif_input(inp, label):
-    return "label: " + label + ". input: " + inp 
+    return "label: " + str(label) + ". input: " + str(inp) 
 
 def format_multiple_choice_input(context, question, options, answer_idx):
     formatted_str = f"question: {question} answer: choice {answer_idx}:" + \
@@ -197,12 +203,12 @@ def format_multiple_choice_input(context, question, options, answer_idx):
         formatted_str += " choice" + str(option_idx) + ": " + option
     return formatted_str
 
-def load_predictor(task, predictor_folder="trained_predictors/"):
-    task_options = ["imdb", "race", "newsgroups"]
+def load_predictor(task, predictor_folder="trained_predictors/models/"):
+    task_options = ["imdb", "race", "newsgroups", "chileanhate"]
     if task not in task_options:
         raise NotImplementedError(f"Task {task} not implemented; \
                 must be one of {task_options}")
-    predictor_path = os.path.join(predictor_folder, task, "model/model.tar.gz")
+    predictor_path = os.path.join(predictor_folder, task, "model.tar.gz")
     if not os.path.exists(predictor_path):
         raise ValueError(f"Cannot find predictor path {predictor_path}")
     logger.info(f"Loading Predictor from: {predictor_path}")
@@ -211,6 +217,7 @@ def load_predictor(task, predictor_folder="trained_predictors/"):
         "imdb": ImdbDatasetReader,
         "newsgroups": NewsgroupsDatasetReader,
         "race": RaceDatasetReader,
+        "chileanhate": ChileanHateDatasetReader,
     }
 
     cuda_device = 0 if torch.cuda.is_available() else -1
@@ -225,10 +232,10 @@ def load_predictor(task, predictor_folder="trained_predictors/"):
 ####################################################################
 
 def load_base_t5(max_length=700):
-    t5_config = T5Config.from_pretrained("t5-base", n_positions=max_length)
-    model = T5ForConditionalGeneration.from_pretrained("t5-base", 
+    t5_config = MT5Config.from_pretrained("google/mt5-small", n_positions=max_length)
+    model = MT5ForConditionalGeneration.from_pretrained("google/mt5-small", 
             config=t5_config)
-    tokenizer = T5TokenizerFast.from_pretrained("t5-base", truncation=True)
+    tokenizer = T5Tokenizer.from_pretrained("google/mt5-small", truncation=True)
     return tokenizer, model
 
 def get_device():
@@ -249,6 +256,8 @@ def get_ints_to_labels(predictor):
 def get_labels_to_ints(predictor):
     vocab = predictor._model.vocab
     labels_to_ints = vocab.get_token_to_index_vocabulary('labels')
+    if labels_to_ints is None:
+        labels_to_ints = vocab.add_token_to_namespace('labels')
     return labels_to_ints
 
 def get_predictor_tokenized(predictor, string):

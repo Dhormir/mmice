@@ -45,7 +45,7 @@ class Editor():
         if ints_to_labels is None:
             ints_to_labels = get_ints_to_labels(self.masker.predictor)
         self.ints_to_labels = ints_to_labels
-        self.max_length = self.editor_model.config.n_positions
+        self.max_length = self.tokenizer.model_max_length
         self.predictor = self.masker.predictor
         self.dataset_reader = self.predictor._dataset_reader 
         self.grad_pred = grad_pred
@@ -126,7 +126,8 @@ class Editor():
         Returns dicts with edited inputs (i.e. whole inputs, dicts in the case
         of RACE) and edited editable segs (i.e. just the parts of inputs
         that are editable, articles in the case of RACE). """
-       
+        print('In Editor get_candidates')
+        print(targ_pred_idx, orig_pred_idx)
         assert targ_pred_idx != orig_pred_idx
 
         if self.grad_pred == "contrast":
@@ -140,12 +141,25 @@ class Editor():
                 self._prepare_input_for_editor(
                         inp, targ_pred_idx, grad_pred_idx,
                         sorted_token_indices=sorted_token_indices)
-
+        print("num_spans:")
+        print(num_spans)
+        print("token_ind_to_mask:")
+        print(token_ind_to_mask)
+        print("masked_inp:")
+        print(masked_inp)
+        print("orig_spans:")
+        print(orig_spans)
+        print("max_length:")
+        print(max_length)
+        print('passed _prepare_input_for_editor')
         edited_editable_segs = self._sample_edits(targ_pred_label, inp, 
                 masked_inp, targ_pred_idx, num_spans=num_spans, 
                 orig_spans=orig_spans, max_length=max_length)
-        edited_cands = [None] * len(edited_editable_segs)
+        edited_cands = [] * len(edited_editable_segs)
+        print(f'edited_editable_segs: {len(edited_editable_segs)}')
+        time.sleep(60 * 10)        
         for idx, es in enumerate(edited_editable_segs):
+            print(f'{idx}: {es}')
             cand = {}
             es = self.truncate_editable_segs([es], inp=inp)[0]
             cand['edited_input'] = self.get_input_from_editable_seg(inp, es) 
@@ -156,13 +170,12 @@ class Editor():
 
     def _prepare_input_for_editor(
             self, inp, targ_pred_idx, grad_pred_idx,
-            sorted_token_indices = None):
+            sorted_token_indices=[]):
         """ Helper function that prepares masked input for Editor. """
-        
         tokens = self.tokenizer_wrapper.tokenize(inp)[:-1]
         tokens = [t.text for t in tokens]
        
-        if sorted_token_indices is not None: 
+        if len(sorted_token_indices) != 0: 
             num_return_toks = math.ceil(self.masker.mask_frac * len(tokens))
             token_ind_to_mask = sorted_token_indices[:num_return_toks]
             grouped_ind_to_mask, token_ind_to_mask, masked_inp, orig_spans = \
@@ -170,13 +183,11 @@ class Editor():
                             inp, grad_pred_idx, 
                             editor_mask_indices=token_ind_to_mask
                             )
-
         else:
             grouped_ind_to_mask, token_ind_to_mask, masked_inp, orig_spans = \
                     self.masker.get_masked_string(inp, grad_pred_idx)
 
-        max_length = math.ceil((self.masker.mask_frac + 0.2) * \
-                len(sorted_token_indices))
+        max_length = math.ceil((self.masker.mask_frac + 0.2) * len(sorted_token_indices))
         num_spans = len(grouped_ind_to_mask)
 
         return num_spans, token_ind_to_mask, masked_inp, orig_spans, max_length
@@ -284,15 +295,16 @@ class Editor():
         
     def _sample_edits(
             self, targ_pred_label, inp, masked_editable_seg, targ_pred_idx, 
-            num_spans = None, orig_spans = None, max_length = None):
+            num_spans = None, orig_spans = None, max_length=0):
         """ Returns self.num_gens copies of masked_editable_seg with infills.
         Called by get_candidates(). """
-        
+        print('in _sample_edits')
         self.editor_model.eval()       
 
         editor_input = self.get_editor_input(
                 targ_pred_label, masked_editable_seg, inp)
-        
+        print(f'editor_input:\n{editor_input}')
+        print(f'masked_editable_seg:\n{masked_editable_seg}')
         editor_inputs = [editor_input]
         editable_segs = [masked_editable_seg]
         span_end_offsets = [num_spans]
@@ -304,24 +316,23 @@ class Editor():
 
         sentinel_start = self.tokenizer.encode("<extra_id_99>")[0]
         sentinel_end = self.tokenizer.encode("<extra_id_0>")[0]
+        print(f'sentinel_start: {sentinel_start}')
+        print(f'sentinel_end: {sentinel_end}')
 
         num_sub_rounds = 0
         edited_editable_segs = [] # list of tuples with meta information
 
         max_sub_rounds = 3
         while editable_segs != []:
-       
             # Break if past max sub rounds 
             if num_sub_rounds > max_sub_rounds:
                 break
-            
             new_editor_inputs = []
             new_editable_segs = []
             new_span_end_offsets = []
             new_orig_token_ids_lst = []
             new_orig_spans_lst = []
             new_masked_token_ids_lst = []
-            num_inputs = len(editor_inputs)
 
             iterator = enumerate(zip(
                 editor_inputs, editable_segs, masked_token_ids_lst, 
@@ -330,19 +341,23 @@ class Editor():
                     span_end, orig_token_ids, orig_spans) in iterator: 
 
                 num_inputs = len(editor_inputs)
-                num_return_seqs = int(math.ceil(self.num_gens/num_inputs)) \
-                        if num_sub_rounds != 0 else self.num_gens
-                num_beams = self.num_beams if num_sub_rounds == 0 \
-                        else num_return_seqs
+                num_return_seqs = int(math.ceil(self.num_gens/num_inputs)) if num_sub_rounds != 0 else self.num_gens
+                num_beams = self.num_beams if num_sub_rounds == 0 else num_return_seqs
                 last_sentin = f"<extra_id_{span_end}>"
+                print(f'last_sentin: {last_sentin}')
                 end_token_id = self.tokenizer.convert_tokens_to_ids(last_sentin)
+                print(f'end_token_id: {end_token_id}')
                 masked_token_ids_tensor = torch.LongTensor(
                             masked_token_ids + [self.tokenizer.eos_token_id]
                         ).unsqueeze(0).to(self.device)
                 eos_id = self.tokenizer.eos_token_id
+                print(f'eos_id: {eos_id}')
                 bad_tokens_ids = [[x] for x in range(
                                     sentinel_start, end_token_id)] + [[eos_id]]
+                print(f'bad_tokens_ids: {bad_tokens_ids}')
+                print(f'max_length before: {max_length}')
                 max_length = max(int(4/3 * max_length), 200)
+                print(f'max_length after: {max_length}')
                 logger.info(wrap_text("Sub round: " + str(num_sub_rounds)))    
                 logger.info(wrap_text(f"Input: {inp_idx} of {num_inputs-1}"))
                 logger.info(wrap_text(f"Last sentinel: {last_sentin}"))
@@ -368,76 +383,88 @@ class Editor():
                             do_sample=True, 
                             top_p=self.top_p, 
                             top_k=self.top_k, 
+                            num_beams=num_beams,
                             num_return_sequences=num_return_seqs, 
                             no_repeat_ngram_size=self.no_repeat_ngram_size, 
                             eos_token_id=end_token_id, 
                             early_stopping=True, 
                             length_penalty=self.length_penalty,
                             bad_words_ids=bad_tokens_ids, 
-                            max_length=max_length) 
+                            max_length=max_length)
+                print(f'output.cpu():\n{output.cpu()}')
                 output = output.cpu()
                 del masked_token_ids_tensor 
                 torch.cuda.empty_cache()
 
                 batch_decoded = self.tokenizer.batch_decode(output)
+                print(f'len batch_decoded:\n{len(batch_decoded)}')
                 num_gens_with_pad = 0
                 num_bad_gens = 0
                 temp_edited_editable_segs = []
                 logger.info(wrap_text("first batch: " + batch_decoded[0]))
                 for batch_idx, batch in enumerate(batch_decoded):
-                    sentinel_toks = [f"<extra_id_{idx}>" for idx in \
-                            range(0, span_end + 1)]
+                    sentinel_toks = [f"<extra_id_{idx}>" for idx in range(0, span_end + 1)]
+                    print(f'sentinel_toks:\n{sentinel_toks}')
                     bad_gen, first_bad_tok, temp, stripped_batch = \
                             self._process_gen(editable_seg, batch, sentinel_toks)
-
+                    print(f'bad_gen: {bad_gen}')
+                    print(f'first_bad_tok: {first_bad_tok}')
+                    print(f'temp: {temp}')
+                    print(f'stripped_batch: {stripped_batch}')
+                    print('-'*200)
                     if len(sentinel_toks) > 3: 
                         assert sentinel_toks[-2] in editor_input
 
                     if "<pad>" in batch[4:]:
                         num_gens_with_pad += 1
                     if bad_gen:
-                        
                         num_bad_gens += 1
                         temp_span_end_offset = first_bad_tok - end_token_id + 1
 
                         new_editable_token_ids = np.array(
                                 self.tokenizer.encode(temp)[:-1])
-
-                        sentinel_indices = np.where(
+                        sentinel_indices = np.nonzero(
                                 (new_editable_token_ids >= sentinel_start) & \
-                                (new_editable_token_ids <= sentinel_end))[0]  
-                        new_first_token = max(
-                                new_editable_token_ids[sentinel_indices])
+                                (new_editable_token_ids <= sentinel_end))[0] 
+                        print(f'sentinel_indices:\n{sentinel_indices}')
+                        print(f'new_editable_token_ids[sentinel_indices]:\n{new_editable_token_ids[sentinel_indices]}')
+                        new_first_token = max(new_editable_token_ids[sentinel_indices])
+                        print(f'new_first_token: {new_first_token}')
                         diff = sentinel_end - new_first_token
+                        print(f'diff: {diff}')
                         new_editable_token_ids[sentinel_indices] += diff
                         
                         new_span_end_offsets.append(len(sentinel_indices))
 
-                        new_editable_seg = self.tokenizer.decode(
-                                new_editable_token_ids)
+                        new_editable_seg = self.tokenizer.decode(new_editable_token_ids)
                         new_editable_segs.append(new_editable_seg)
                         
-                        new_input = self.get_editor_input(targ_pred_label, 
-                                new_editable_seg, inp)
+                        new_input = self.get_editor_input(targ_pred_label, new_editable_seg, inp)
 
                         new_masked_token_ids = self.tokenizer.encode(new_input)[:-1]
                         new_masked_token_ids_lst.append(new_masked_token_ids)
 
                         # Hacky but re-decode to remove spaces b/w sentinels
-                        new_editor_input = self.tokenizer.decode(
-                                new_masked_token_ids)
+                        new_editor_input = self.tokenizer.decode(new_masked_token_ids)
+                        print(f'new_editor_input:\n{new_editor_input}')
                         new_editor_inputs.append(new_editor_input)
 
                         # Get orig token ids from new first token and on
-                        new_orig_token_ids = np.array(orig_token_ids[np.where(
-                            orig_token_ids == new_first_token)[0][0]:]) 
-                        sentinel_indices = np.where((
-                            new_orig_token_ids >= sentinel_start) & \
-                            (new_orig_token_ids <= sentinel_end))[0]
-                        new_orig_token_ids[sentinel_indices] += diff
-                        new_orig_token_ids_lst.append(new_orig_token_ids)
-                        new_orig_spans = self.tokenizer.decode(new_orig_token_ids)
-                        new_orig_spans_lst.append(new_orig_spans)
+                        print(f'new_first_token:{new_first_token}')
+                        print(f'orig_token_ids:\n{orig_token_ids}')
+                        print(f'orig_token_ids == new_first_token:\n{np.nonzero(orig_token_ids == new_first_token)}')
+                        try:
+                            new_orig_token_ids = np.array(orig_token_ids[np.nonzero(orig_token_ids == new_first_token)[0][0]:]) 
+                            sentinel_indices = np.nonzero((new_orig_token_ids >= sentinel_start) & (new_orig_token_ids <= sentinel_end))[0]
+                            new_orig_token_ids[sentinel_indices] += diff
+                            new_orig_token_ids_lst.append(new_orig_token_ids)
+                            new_orig_spans = self.tokenizer.decode(new_orig_token_ids)
+                            new_orig_spans_lst.append(new_orig_spans)
+                        except IndexError as e:
+                            print('IndexError')
+                            print(e)
+                        except:
+                            print('Something else went wrong')
 
                     else:
                         temp_edited_editable_segs.append(temp)
@@ -450,11 +477,12 @@ class Editor():
             if new_editor_inputs == []:
                 break
 
-            _, unique_batch_indices = np.unique(new_editor_inputs, 
-                    return_index=True)
-
+            _, unique_batch_indices = np.unique(new_editor_inputs, return_index=True)
+            print(f'unique_batch_indices:{unique_batch_indices}')
             targ_probs = [-1] * len(new_editable_segs)
             for idx in unique_batch_indices:
+                print(f'len new_orig_spans_lst: {len(new_orig_spans_lst)}')
+                print(f'new_orig_spans_lst: {new_orig_spans_lst}')
                 ot = new_orig_spans_lst[idx].replace("<pad>", "")
                 temp, pred = self._get_pred_with_replacement(
                         new_editable_segs[idx], ot, inp)
