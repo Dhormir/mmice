@@ -69,12 +69,11 @@ def get_shared_parsers():
 
 def get_stage_one_parsers():
     """ Helper function to get parsers for Stage 1. """
-
     train_parser = argparse.ArgumentParser()
     train_parser.add_argument("-train_batch_size", default=1, type=int)
     train_parser.add_argument("-val_batch_size", default=1, type=int)
     train_parser.add_argument("-num_epochs", default=10, type=int)
-    train_parser.add_argument("-lr", default=5e-5, type=float)
+    train_parser.add_argument("-lr", default=1e-3, type=float)
     train_parser.add_argument("-seed", default=42, type=int)
     train_parser.add_argument("-data_split_ratio", default=0.75, type=float)
 
@@ -232,10 +231,14 @@ def load_predictor(task, predictor_folder="trained_predictors/models/"):
 ####################################################################
 
 def load_base_t5(max_length=700):
-    t5_config = MT5Config.from_pretrained("google/mt5-small", n_positions=max_length)
+    t5_config = MT5Config.from_pretrained("google/mt5-small",
+                                          n_positions=max_length)
     model = MT5ForConditionalGeneration.from_pretrained("google/mt5-small", 
             config=t5_config)
-    tokenizer = T5Tokenizer.from_pretrained("google/mt5-small", truncation=True)
+    tokenizer = T5TokenizerFast.from_pretrained("google/mt5-small",
+                                            truncation=True,
+                                            padding=True,
+                                            max_length=max_length)
     return tokenizer, model
 
 def get_device():

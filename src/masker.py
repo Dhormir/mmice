@@ -67,7 +67,7 @@ class Masker():
     def _get_sentinel_token(idx):
         """ Helper function to get sentinel token based on given idx """
 
-        return "<extra_id_" + str(idx) + ">"
+        return " <extra_id_" + str(idx) + ">"
 
     def _get_grouped_mask_indices(
             self, editable_seg, pred_idx, editor_mask_indices, 
@@ -145,7 +145,7 @@ class Masker():
                     masked_seg[span_char_end:]
             span_idx -= 1    
 
-        return grpd_editor_mask_indices, editor_mask_indices, masked_seg, label
+        return grpd_editor_mask_indices, editor_mask_indices, masked_seg.replace("  ", " "), label
             
 class RandomMasker(Masker):
     """ Masks randomly chosen spans. """ 
