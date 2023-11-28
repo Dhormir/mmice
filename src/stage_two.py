@@ -78,9 +78,9 @@ def load_models(args):
     logger.info("Loading models...")
     predictor = load_predictor(args.meta.task)
     editor_tokenizer_wrapper = PretrainedTransformerTokenizer(
-            "google/mt5-small", max_length=args.model.model_max_length)
+            "google/mt5-small", max_length=768)
     editor_tokenizer, editor_model = load_base_t5(
-                       max_length=args.model.model_max_length)
+                       max_length=768)
     device = get_device()
     editor_model = load_editor_weights(editor_model, args.meta.editor_path)
     editor_model = editor_model.to(device)

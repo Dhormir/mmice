@@ -36,4 +36,4 @@ def clean_text(text, special_chars=["\n", "\t"]):
     special_chars += ["#"]
     for char in special_chars:
         text = text.replace(char, " ")
-    return my_pre_processer(text)
+    return text

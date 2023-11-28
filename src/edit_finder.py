@@ -345,10 +345,7 @@ class EditFinder():
         beam_width = self.beam_width
 
         # Get truncated editable part of input
-        print('-' * 60)
-        print(orig_input)
         editable_seg = self.editor.get_editable_seg_from_input(orig_input)
-        print(orig_input)
         editable_seg = self.editor.truncate_editable_segs(
                                         [editable_seg], inp=orig_input)[0]
 
