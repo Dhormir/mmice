@@ -3,4 +3,4 @@
 results
 trained_predictors
 .python-version
-**/__pycache__
+__pycache__
