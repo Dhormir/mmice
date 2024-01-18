@@ -92,6 +92,7 @@ def sort_instances_by_score(scores, *args):
 
 def get_scores(predictor, instance_candidates, contrast_pred_idx, k=None):
     """ Gets (top k) predicted probs of contrast_pred_idx on candidates. """
+    instance_candidates.to(predictor.device)
     # Get predictions
     with torch.no_grad():
         outputs = predictor.model(**instance_candidates)
@@ -100,9 +101,8 @@ def get_scores(predictor, instance_candidates, contrast_pred_idx, k=None):
 
     if k:
         pred_indices = torch.argmax(probs, dim=1)
-
         # Compute this only for remaining
-        contrast_pred_tensor = torch.tensor([contrast_pred_idx])#.cuda()
+        contrast_pred_tensor = torch.tensor([contrast_pred_idx]).cuda()
         bool_equal = (pred_indices == contrast_pred_tensor)
         pred_is_contrast_indices = bool_equal.reshape(-1).nonzero().reshape(-1)
         
@@ -174,9 +174,8 @@ class EditFinder():
 
         # we fixed this to a simple BatchEncoding
         instance_cands = [es if es else inp for inp, es in zip(input_cands, editable_seg_cands)]
-        instance_cands = self.predictor.tokenizer.batch_encode_plus(instance_cands, padding=True,
-                                                                    truncation=True, return_tensors='pt')
-        
+        instance_cands = self.predictor.tokenizer(instance_cands, padding=True,
+                                                  truncation=True, return_tensors='pt')
         # TODO: does this happen? might get [] if all generations are bad, but 
         # Should not happen (if no good generations, use original infillings)
         if len(input_cands) == 0:
@@ -185,13 +184,12 @@ class EditFinder():
 
         probs, pred_indices, highest_indices = get_scores(self.predictor, instance_cands,
                                                           contrast_pred_idx, k=self.beam_width)
-
         input_cands = [input_cands[idx] for idx in highest_indices]
         editable_seg_cands = [editable_seg_cands[idx] for idx in highest_indices]
         
         # Sort these by highest score for iteration
-        sorted_cands = sort_instances_by_score(
-                probs, pred_indices, input_cands, editable_seg_cands)
+        sorted_cands = sort_instances_by_score(probs, pred_indices,
+                                               input_cands, editable_seg_cands)
         found_cand = False
         beam_inputs = [s for _, _, s in edit_list.beam]
         iterator = enumerate(sorted_cands)
@@ -317,9 +315,6 @@ class EditFinder():
             Defaults to -2, i.e. use label with 2nd highest pred prob.
 
         Returns EditList() object. """
-
-        editor = self.editor
-        beam_width = self.beam_width
 
         # Get truncated editable part of input
         editable_seg = orig_input

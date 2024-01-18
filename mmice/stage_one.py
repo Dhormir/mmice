@@ -2,7 +2,7 @@ from accelerate import Accelerator
 from torch.utils.data import DataLoader
 import torch
 
-from tqdm.auto import tqdm
+from tqdm.autonotebook import tqdm
 import pandas as pd
 import numpy as np
 import os
@@ -32,7 +32,7 @@ def train_epoch(epoch, editor_tokenizer, editor_model, train_data_loader, optimi
         editor_model (transformers.PreTrainedModel): Pretrained editor model.
         train_data_loader (torch.utils.data.DataLoader): Dataloader for efficient batching.
         optimizer (torch.optim.Optimizer): Optimizer used in training.
-        progress_bar (tqdm.auto): Progress bar for visualization of progress across epochs.
+        progress_bar (tqdm): Progress bar for visualization of progress across epochs.
 
     Returns:
         total_loss (integer): Loss sum of training in epoch.
@@ -43,7 +43,8 @@ def train_epoch(epoch, editor_tokenizer, editor_model, train_data_loader, optimi
     # Train Epoch Progress bar
     progress_bar = tqdm(train_data_loader,
                         total=len(train_data_loader),
-                        disable=not ACCELERATOR.is_local_main_process)
+                        disable=not ACCELERATOR.is_local_main_process,
+                        position=1, leave=True,)
     progress_bar.set_description('Training loop progress')
 
     for batch in train_data_loader:
@@ -61,7 +62,7 @@ def train_epoch(epoch, editor_tokenizer, editor_model, train_data_loader, optimi
         optimizer.zero_grad()
         del lm_labels
         del ids
-        progress_bar.update(1)
+        progress_bar.update()
         progress_bar.set_postfix_str(f"Batch Loss: {loss.item():.4f}")
     progress_bar.close()
     avg_loss = total_loss/len(train_data_loader)
@@ -89,7 +90,8 @@ def validate_epoch(epoch, editor_tokenizer, editor_model, val_data_loader):
     # This progress bar can be greatly improved.
     progress_bar = tqdm(val_data_loader,
                         total=len(val_data_loader),
-                        desc='Validation loop progress')
+                        desc='Validation loop progress',
+                        position=1, leave=True,)
     for batch in val_data_loader:
         lm_labels = batch['target_ids']
         lm_labels[lm_labels[:, :] == editor_tokenizer.pad_token_id] = -100
@@ -101,7 +103,7 @@ def validate_epoch(epoch, editor_tokenizer, editor_model, val_data_loader):
 
         del lm_labels
         del ids
-        progress_bar.update(1)
+        progress_bar.update()
         progress_bar.set_postfix_str(f"Batch Loss: {loss.item():.4f}")
     progress_bar.close()
     avg_loss = total_loss/len(val_data_loader)
@@ -315,7 +317,8 @@ def run_train_editor(predictor, dataset_reader, args):
     logger.info('Initiating Editor Fine-Tuning.')
     # Training Progress bar
     progress_bar = tqdm(range(args.train.num_epochs),
-                        disable=not ACCELERATOR.is_local_main_process)
+                        disable=not ACCELERATOR.is_local_main_process,
+                        position=1, leave=True,)
     progress_bar.set_description('Epoch Training progress')
     
     # Path to best validation model

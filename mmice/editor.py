@@ -355,7 +355,6 @@ class Editor():
                             range(0, span_end + 1)]
                     bad_gen, first_bad_tok, temp, stripped_batch = \
                             self._process_gen(editable_seg, batch, sentinel_toks)
-
                     if len(sentinel_toks) > 3: 
                         assert sentinel_toks[-2] in editor_input
 
@@ -409,12 +408,10 @@ class Editor():
                     assert "</s>" not in temp
 
                 edited_editable_segs.extend(temp_edited_editable_segs)
-
             if new_editor_inputs == []:
                 break
 
-            _, unique_batch_indices = np.unique(new_editor_inputs, 
-                    return_index=True)
+            _, unique_batch_indices = np.unique(new_editor_inputs, return_index=True)
 
             targ_probs = [-1] * len(new_editable_segs)
             for idx in unique_batch_indices:
