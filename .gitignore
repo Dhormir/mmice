@@ -1,0 +1,6 @@
+.env
+.vscode
+results
+trained_predictors
+.python-version
+__pycache__
