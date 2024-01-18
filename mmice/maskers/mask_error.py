@@ -1,0 +1,2 @@
+class MaskError(Exception):
+    pass
