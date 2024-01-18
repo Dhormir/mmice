@@ -1,7 +1,7 @@
 import torch
 import os
 import csv
-from tqdm import tqdm
+from tqdm.autonotebook import tqdm
 import re
 import numpy as np
 import time
@@ -189,7 +189,7 @@ def run_edit_test(args):
                 sorted_list = edited_list.get_sorted_edits() 
 
             except Exception as e:
-                logger.info(f"ERROR: {e}")
+                logger.error(f"ERROR: {e}")
                 error = True
                 sorted_list = []
 

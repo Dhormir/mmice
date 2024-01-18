@@ -159,7 +159,6 @@ class GradientMasker(Masker):
 
         grad_dict = dict()
         for idx, grad in enumerate(embedding_gradients):
-            #print(grad)
             key = "grad_input_" + str(idx + 1)
             grad_dict[key] = grad.detach().cpu().numpy()
 
@@ -178,10 +177,6 @@ class GradientMasker(Masker):
             tokenized by different tokenizers. """
         return_word_idx = None
         # We determine predictor token position in the editable_sequence
-        #predictor_tokenized_input = self.predictor.tokenizer(editable_seq)
-        #predictor_tokenized_tok_idx = predictor_tokenized_input.tokens().index(predic_tok, predic_tok_idx)
-        #predictor_tokenized_tok_span = predictor_tokenized_input.token_to_chars(predictor_tokenized_tok_idx)
-        #print(f'\npredictor_tokenized_tok_span: {predictor_tokenized_tok_span}')
         predic_tok_start = predic_tok_span.start
         predic_tok_end = predic_tok_span.end
         editor_tokens = editor_tokenized.tokens()
@@ -193,20 +188,18 @@ class GradientMasker(Masker):
         class Found(Exception): pass
         try:
             for word_idx, word_token in reversed(list(enumerate(editor_tokens))):
-                # this is not optimized probably change it so it doesnt need the editable sequence and tokenize in a previous step instead of perfomer it every time
+                # this is not optimized probably change it so it doesnt need the editable sequence and tokenize in a 
+                # previous step instead of perfomer it every time
                 word_token_span = editor_tokenized.token_to_chars(word_idx)
-                #print(f'word_token_span: {word_token_span}')
                 if word_token_span is None:
                     continue
                 # Ensure predic_tok start >= start of last Editor tok
                 if word_idx == len(editor_tokens) - 1 and predic_tok_start >= word_token_span.start:
-                    #print('Predicted token is the last token')
                     return_word_idx = word_idx
                     raise Found
                 # For all other Editor toks, ensure predic_tok start
                 # >= Editor tok start and < next Editor tok start
                 elif predic_tok_start >= word_token_span.start:
-                    #print(f'Editor tok span: {word_token_span}')
                     for cand_idx, cand_token in enumerate(editor_tokens[word_idx + 1:]):
                         cand_idx += word_idx
                         cand_token_span = editor_tokenized.token_to_chars(cand_idx)
@@ -454,11 +447,8 @@ class GradientMasker(Masker):
 
         # Order Predictor tokens from largest to smallest gradient values
         ordered_predic_tok_indices = np.argsort(grad_magnitudes)[::-1]
-        #print(f'predictor_tok_end_idx: {predictor_tok_end_idx}, len(grad_magnitudes): {len(grad_magnitudes)}')
-        # List of tuples of (start, end) positions in the original inp to mask
         ordered_word_indices_by_grad = [self._get_word_positions(tokenized_editable_seq.token_to_chars(idx),
                                                                  editor_tokenized)[0] for idx in ordered_predic_tok_indices if all_predic_toks[idx] not in self.predictor_special_toks]
-        #print(f'\nordered_word_indices_by_grad:\n{ordered_word_indices_by_grad}')
         ordered_word_indices_by_grad = [item for sublist in ordered_word_indices_by_grad for item in sublist]
         # Sanity checks
         self.sanity_check(predictor_tok_end_idx, predictor_tok_start_idx, grad_magnitudes, all_predic_toks)

@@ -1,7 +1,6 @@
 import torch
 from torch.utils.data import Dataset
-from tqdm.contrib.logging import logging_redirect_tqdm
-from tqdm import tqdm
+from tqdm.autonotebook import tqdm
 import numpy as np
 import logging
 
@@ -109,8 +108,7 @@ class StageOneDataset(Dataset):
                 
             except MaskError as e:
                 num_errors += 1
-                print('Error')
-                print(e)
+                logger.error(e)
 
 
         self.masked_strings = masked_strings
@@ -175,8 +173,7 @@ class RaceStageOneDataset(StageOneDataset):
                 
             except MaskError as e:
                 num_errors += 1
-                print('Error')
-                print(e)
+                logger.error(e)
 
         self.masked_strings = masked_strings
         self.targets = targets

@@ -2,6 +2,7 @@ import more_itertools as mit
 import logging
 
 from .mask_error import MaskError
+from ..utils import logger
 
 FORMAT = "[%(filename)s:%(lineno)s - %(funcName)20s() ] %(message)s"
 logging.basicConfig(format=FORMAT)
@@ -156,7 +157,7 @@ class Masker():
                 span_char_end = span_char_start + 1
 
             if span_char_end <= span_char_start:
-                print("Esta pasando algo raro!!")
+                logger.info("Esta pasando algo raro!!")
                 raise MaskError
 
             label = self._get_sentinel_token(span_idx) + masked_seg[span_char_start:span_char_end] + label
