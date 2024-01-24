@@ -311,7 +311,7 @@ class Editor():
                 bad_tokens_ids = [[x] for x in range(sentinel_start, end_token_id)] + [[eos_token_id]]
                 max_length = max(int(4/3 * max_length), 200)
                 logger.info(wrap_text("Sub round: " + str(num_sub_rounds)))    
-                logger.info(wrap_text(f"Input: {inp_idx} of {num_inputs-1}"))
+                logger.info(wrap_text(f"Input: {inp_idx + 1} of {num_inputs}"))
                 logger.info(wrap_text(f"Last sentinel: {last_sentin}"))
                 logger.info(wrap_text("INPUT TO EDITOR: " + \
                         f"{self.tokenizer.decode(masked_token_ids)}"))
@@ -417,13 +417,13 @@ class Editor():
             for idx in unique_batch_indices:
                 ot = new_orig_spans_lst[idx].replace("<pad>", "")
                 temp, edit_preds = self._get_pred_with_replacement(new_editable_segs[idx], ot)
-                # predictions are always sorted by score
+                # predictions are always sorted by score from higher to lower
                 edit_probs = [edit_pred['score'] for edit_pred in edit_preds]
                 edit_labels = [edit_pred['label'] for edit_pred in edit_preds]
                 targ_pred_idx = targ_pred_idx if edit_labels[targ_pred_idx] == targ_pred_label else edit_labels.index(targ_pred_label)
                 #preds = add_probs(preds)
                 targ_probs[idx] = edit_probs[targ_pred_idx]
-                predicted_label = edit_labels[0] 
+                predicted_label = edit_preds[0]["label"]
                 contrast_label = edit_labels[targ_pred_idx]
                 if predicted_label == contrast_label: 
                     edited_editable_segs.append(temp)

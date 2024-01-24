@@ -129,12 +129,18 @@ def edit_indices(out_file, inputs):
 
 def run_edit_test(args):
     """ Runs Stage 2 on test inputs by task. """
-
     task_dir = os.path.join(args.meta.results_dir, args.meta.task)
     stage_two_dir = os.path.join(task_dir, f"edits/{args.meta.stage2_exp}")
-   
+
     if not os.path.exists(stage_two_dir):
         os.makedirs(stage_two_dir)
+
+    # setting log file and output file    
+    meta_log_file = os.path.join(stage_two_dir, "meta_log.txt")
+    out_file = os.path.join(stage_two_dir, "edits.csv")
+    # add output to log file
+    logger.addHandler(logging.FileHandler(meta_log_file))
+   
 
     logger.info(f"Task dir: {task_dir}")
     logger.info(f"Stage two dir: {stage_two_dir}")
@@ -142,15 +148,11 @@ def run_edit_test(args):
     # Save args
     args_path = os.path.join(stage_two_dir, "stage_two_args.json")
     write_args(args_path, args)
-    
-    out_file = os.path.join(stage_two_dir, "edits.csv")
-    meta_log_file = os.path.join(stage_two_dir, "meta_log.txt")
-
-    meta_f = open(meta_log_file, 'w', 1)
 
     # Load models and Edit objects 
     editor, predictor = load_models(args)
     dr = get_dataset_reader(args.meta.task, split='test')
+    dr = dr.shuffle(seed=42).select(range(args.misc.n_samples)) if args.misc.n_samples != 0 else dr.shuffle(seed=42)
     edit_evaluator = EditEvaluator()
     edit_finder = EditFinder(predictor, editor,
                              beam_width=args.search.beam_width, 
@@ -158,7 +160,7 @@ def run_edit_test(args):
                              search_method=args.search.search_method,
                              max_search_levels=args.search.max_search_levels)
     
-    inputs = dr['text'][:args.misc.n_samples] if args.misc.n_samples != 0 else dr['text']
+    inputs = dr['text']
     if "race" not in args.meta.task:
         # we check whether the input is empty??
         inputs = [x for x in inputs if len(x) > 0 and re.search('[a-zA-Z]', x)]
@@ -174,17 +176,16 @@ def run_edit_test(args):
                       "duration", "error"]
         writer = csv.writer(csv_file, delimiter="\t")
         writer.writerow(fieldnames)
-
         for _, i in tqdm(enumerate(input_indices), total=len(input_indices)):
             inp = inputs[i]
             logger.info(wrap_text(f"ORIGINAL INSTANCE ({i}): {inp}"))
-
             start_time = time.time()
             error = False
             try:
                 edited_list = edit_finder.minimally_edit(inp,
                                                          max_edit_rounds=args.search.max_edit_rounds,
                                                          edit_evaluator=edit_evaluator)
+                logger.info("successful round")
                 torch.cuda.empty_cache()
                 sorted_list = edited_list.get_sorted_edits() 
 
@@ -212,7 +213,4 @@ def run_edit_test(args):
                     edited_list.orig_editable_seg, 
                     None, None, None, None, duration, error]) 
                 csv_file.flush()
-                meta_f.flush()
-
     csv_file.close()
-    meta_f.close()

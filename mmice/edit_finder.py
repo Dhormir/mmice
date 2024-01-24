@@ -10,7 +10,7 @@ import os
 import heapq
 
 from transformers import T5TokenizerFast
-from transformers import T5ForConditionalGeneration
+from transformers import T5ForConditionalGeneration, MT5ForConditionalGeneration
 
 # Local imports
 from .maskers.random_masker import RandomMasker
@@ -27,26 +27,18 @@ logger.setLevel(logging.INFO)
 ############################## Utils ###############################
 ####################################################################
 
-def get_max_instance(instance_candidates, contrast_pred_idx):
-    """ Returns candidate with highest predicted prob of contrast_pred_idx. """
-
-    batched_preds = predictor.predict_batch_instance(instance_candidates)
-    batched_preds = [add_probs(pred) for pred in batched_preds]
-    max_idx = max(range(len(batched_preds)), key=lambda index: \
-            batched_preds[index]['probs'][contrast_pred_idx])
-    max_candidate = instance_candidates[max_idx]
-    max_prob = batched_preds[max_idx]['probs'][contrast_pred_idx]
-
-    return max_candidate, max_prob
 
 class EditEvaluator():
     def __init__(
         self,
-        fluency_model_name = "t5-small",
-        fluency_masker = RandomMasker(None, T5TokenizerFast.from_pretrained("t5-small", model_max_length=700), 700)
+        fluency_model_name="t5-small",
+        fluency_masker=RandomMasker(None, T5TokenizerFast.from_pretrained("t5-small", model_max_length=700), 700)
     ):
         self.device = get_device()
-        self.fluency_model = T5ForConditionalGeneration.from_pretrained(fluency_model_name)#.to(self.device)
+        if "mt5" not in fluency_model_name:
+            self.fluency_model = T5ForConditionalGeneration.from_pretrained(fluency_model_name).to(self.device)
+        else:
+            self.fluency_model = MT5ForConditionalGeneration.from_pretrained(fluency_model_name).to(self.device)
         self.fluency_tokenizer = T5TokenizerFast.from_pretrained(fluency_model_name,  model_max_length=700)
         self.fluency_masker = fluency_masker 
 
@@ -55,18 +47,23 @@ class EditEvaluator():
         masked_strings, span_labels = \
                 self.fluency_masker.get_all_masked_strings(sent)
         for masked, label in zip(masked_strings, span_labels):
-            input_ids = self.fluency_tokenizer.encode(masked,
-                                                      truncation="longest_first",
-                                                      max_length=600,
-                                                      return_tensors="pt")
-            input_ids = input_ids#.to(self.device)
-            labels = self.fluency_tokenizer.encode(label,
-                                                   truncation="longest_first",
-                                                   max_length=600,
-                                                   return_tensors="pt")
-            labels = labels#.to(self.device)
-            outputs = self.fluency_model(input_ids=input_ids,
-                                         labels=labels)
+            input_ids = self.fluency_tokenizer(masked,
+                                               truncation=True,
+                                               padding='max_length',
+                                               pad_to_max_length=True,
+                                               max_length=700,
+                                               return_tensors="pt")
+            input_ids = input_ids.to(self.device)
+            labels = self.fluency_tokenizer(label,
+                                            truncation=True,
+                                            padding='max_length',
+                                            pad_to_max_length=True,
+                                            max_length=700,
+                                            return_tensors="pt")
+            labels.input_ids[labels.input_ids[:, :] == self.fluency_tokenizer.pad_token_id] = -100
+            labels = labels.to(self.device)
+            outputs = self.fluency_model(input_ids=input_ids.input_ids,
+                                         labels=labels.input_ids)
             loss = outputs[0] 
             temp_losses.append(loss.item())
             del input_ids
@@ -85,9 +82,8 @@ class EditEvaluator():
 
 def sort_instances_by_score(scores, *args):
     """ Sorts *args in order of decreasing scores """
-
     zipped = list(zip(scores, *args)) 
-    zipped.sort(reverse = True)
+    zipped.sort(reverse=True)
     return list(zipped)
 
 def get_scores(predictor, instance_candidates, contrast_pred_idx, k=None):
@@ -98,7 +94,6 @@ def get_scores(predictor, instance_candidates, contrast_pred_idx, k=None):
         outputs = predictor.model(**instance_candidates)
         outputs = add_probs(outputs)
         probs = outputs['score']
-
     if k:
         pred_indices = torch.argmax(probs, dim=1)
         # Compute this only for remaining
@@ -118,8 +113,7 @@ def get_scores(predictor, instance_candidates, contrast_pred_idx, k=None):
     else:
         cpu_pred_indices = torch.argmax(probs, dim=1).cpu().numpy()
         cpu_contrast_probs = probs[:, contrast_pred_idx].cpu().numpy()
-        highest_indices = range(len(cpu_contrast_probs)) 
-
+        highest_indices = range(len(cpu_contrast_probs))
     assert cpu_pred_indices.shape == cpu_contrast_probs.shape
     del outputs
     del probs
@@ -164,11 +158,9 @@ class EditFinder():
         logger.info(wrap_text(f"Running candidate generation for mask frac: \
                 {mask_frac}; max mask frac: {self.max_mask_frac}"))
         self.editor.masker.mask_frac = mask_frac
-
         candidates, masked_sentence = self.editor.get_candidates(edit_list.contrast_label, input_cand, contrast_pred_idx,
                                                                  edit_list.orig_pred_idx,
                                                                  sorted_token_indices=sorted_token_indices)
-
         input_cands = [e['edited_input'] for e in candidates]
         editable_seg_cands = [e['edited_editable_seg'] for e in candidates]
 
@@ -179,7 +171,7 @@ class EditFinder():
         # TODO: does this happen? might get [] if all generations are bad, but 
         # Should not happen (if no good generations, use original infillings)
         if len(input_cands) == 0:
-            logger.info("no candidates returned...")
+            logger.error("no candidates returned...")
             return False 
 
         probs, pred_indices, highest_indices = get_scores(self.predictor, instance_cands,
@@ -238,7 +230,6 @@ class EditFinder():
         """ Runs binary search over masking percentages, starting at
         midpoint between min_mask_frac and max_mask_frac.
         Calls run_edit_round at each mask percentage. """
-      
         if max_levels == None:
             max_levels = self.max_search_levels
 
@@ -287,8 +278,6 @@ class EditFinder():
         
         """ Runs linear search over masking percentages from min_mask_frac
         to max_mask_frac. Calls run_edit_round at each mask percentage. """
-      
-        predictor, editor = self.predictor, self.editor
         if max_levels == None: max_levels = self.max_search_levels
         mask_frac_step = (max_mask_frac - min_mask_frac) / max_levels
         mask_frac_iterator = np.arange(min_mask_frac+mask_frac_step, 
@@ -306,13 +295,11 @@ class EditFinder():
         return found_cand
 
     def minimally_edit(self, orig_input,
-                       contrast_pred_idx=-2, max_edit_rounds = 10,
-                       edit_evaluator=None):
-
+                       contrast_pred_idx=1, max_edit_rounds=10, edit_evaluator=None):
         """ Gets minimal edits for given input. 
         Calls search algorithm (linear/binary) based on self.search_method.
         contrast_pred_idx specifies which label to use as the contrast.
-            Defaults to -2, i.e. use label with 2nd highest pred prob.
+            Defaults to 1, i.e. use label with 2nd highest pred prob.
 
         Returns EditList() object. """
 
@@ -324,32 +311,23 @@ class EditFinder():
         num_toks = len(get_predictor_tokenized(self.predictor, editable_seg))
         assert num_toks <= self.predictor.tokenizer.model_max_length
 
-        editable_seg = self.editor.tokenizer.decode(self.editor.tokenizer.encode(editable_seg),
-                                                    clean_up_tokenization_spaces=True).replace("</s>", " ") 
         start_time = time.time()
-        # ToDo 
-        #instance = self.editor.input_to_instance(orig_input,
-        #                                         editable_seg=editable_seg)
         orig_preds = self.predictor(editable_seg)[0]
-        #orig_pred = add_probs(orig_pred)
-        orig_probs = [pred['score'] for pred in orig_preds]
-        orig_labels = [pred['label'] for pred in orig_preds]
-        orig_pred_idx = np.array(orig_probs).argsort()[-1]
-        orig_pred_label = orig_labels[orig_pred_idx]
+        logger.info(f"orig_preds: {orig_preds}")
+        # transformers pipeline always return in decreasing order
+        orig_pred_label = orig_preds[0]["label"]
+        orig_pred_idx = self.labels_to_ints[orig_pred_label]
 
         assert orig_pred_label == str(orig_pred_label)
 
-        contrast_pred_idx = np.array(orig_probs).argsort()[contrast_pred_idx]
-        contrast_label = orig_labels[contrast_pred_idx]
-
-        # orig_contrast_prob = get_prob_pred(orig_pred, contrast_pred_idx) 
-        orig_contrast_prob = orig_probs[contrast_pred_idx]
+        contrast_label = orig_preds[contrast_pred_idx]["label"]
+        orig_contrast_prob = orig_preds[contrast_pred_idx]["score"]
+        contrast_pred_idx = self.labels_to_ints[contrast_label]
 
         assert orig_contrast_prob < 1.0
 
         num_rounds = 0
         new_pred_label = orig_pred_label
-
         logger.info(f"Contrast label: {contrast_label}")
         logger.info(f"Orig contrast prob: {round(orig_contrast_prob, 3)}")
 
@@ -381,14 +359,14 @@ class EditFinder():
 
                 if self.search_method == "binary":
                     self.binary_search_edit(edit_list, input_cand, 
-                            contrast_pred_idx, num_rounds, 
+                            self.labels_to_ints[contrast_label], num_rounds, 
                             max_mask_frac=self.max_mask_frac, num_levels=1, 
                             edit_evaluator=edit_evaluator,
                             sorted_token_indices=sorted_token_indices)
 
                 elif self.search_method == "linear":
                     self.linear_search_edit(edit_list, input_cand, 
-                            contrast_pred_idx, num_rounds, 
+                            self.labels_to_ints[contrast_label], num_rounds, 
                             max_mask_frac=self.max_mask_frac, 
                             sorted_token_indices=sorted_token_indices,
                             edit_evaluator=edit_evaluator)
