@@ -236,7 +236,7 @@ class GradientMasker(Masker):
                 return_ends.append(cand_token_span.end)
 
             if predic_tok_start < editor_token_span.start:
-                print('in Here!I')
+                print('MaskError: I')
                 raise MaskError
 
             # Sometimes BERT tokenizers add extra tokens if spaces at end
@@ -244,7 +244,7 @@ class GradientMasker(Masker):
             if last_idx == len(editor_tokens) - 1 and predic_tok_end > last_editor_token_span.end:
                 print(f'predic_tok_end: {predic_tok_end}')
                 print(f'last_editor_token_span.end: {last_editor_token_span.end}')
-                print('in Here!II')
+                print('MaskError: II')
                 raise MaskError
 
             return return_indices, return_starts, return_ends

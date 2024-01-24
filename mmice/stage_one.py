@@ -44,7 +44,7 @@ def train_epoch(epoch, editor_tokenizer, editor_model, train_data_loader, optimi
     progress_bar = tqdm(train_data_loader,
                         total=len(train_data_loader),
                         disable=not ACCELERATOR.is_local_main_process,
-                        position=1, leave=True,)
+                        position=0, leave=True,)
     progress_bar.set_description('Training loop progress')
 
     for batch in train_data_loader:
@@ -91,7 +91,7 @@ def validate_epoch(epoch, editor_tokenizer, editor_model, val_data_loader):
     progress_bar = tqdm(val_data_loader,
                         total=len(val_data_loader),
                         desc='Validation loop progress',
-                        position=1, leave=True,)
+                        position=0, leave=True,)
     for batch in val_data_loader:
         lm_labels = batch['target_ids']
         lm_labels[lm_labels[:, :] == editor_tokenizer.pad_token_id] = -100
@@ -317,8 +317,7 @@ def run_train_editor(predictor, dataset_reader, args):
     logger.info('Initiating Editor Fine-Tuning.')
     # Training Progress bar
     progress_bar = tqdm(range(args.train.num_epochs),
-                        disable=not ACCELERATOR.is_local_main_process,
-                        position=1, leave=True,)
+                        disable=not ACCELERATOR.is_local_main_process)
     progress_bar.set_description('Epoch Training progress')
     
     # Path to best validation model

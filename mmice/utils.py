@@ -40,7 +40,6 @@ AVAILABLE_MODELS = [
 def get_shared_parsers():
     """ Helper function to get parsers.
     Gets parsers that are shared across stage one and stage two. """
-
     meta_parser = argparse.ArgumentParser()
     meta_parser.add_argument("-task", required=True, 
             help='Name of task. Currently, only RACE, IMDB, \
@@ -176,11 +175,12 @@ def write_args(args_path, args):
 ####################### Task Specific Utils ########################
 ####################################################################
 
-def clean_text(example, special_chars=["\n", "\t", "#", "<br />"]):
+def clean_text(example, special_chars=["\n", "\t", "\x85", "\x97", "#", "<br />", "<br/>"]):
     text = example['text']
     for char in special_chars:
-        text = text.replace(char, " ")
-    example['text'] = text
+        if char in text:
+            text = text.replace(char, " ")
+    example['text'] = text.encode()
     return example
 
 def get_dataset_reader(task_name, split='train'):
@@ -302,6 +302,15 @@ def add_probs(pred):
     """ Computes predicted score from logits. """
     if 'score' not in pred.keys():
         if isinstance(pred['logits'], torch.Tensor):
+            pred['score'] = torch.nn.functional.softmax(pred['logits'], dim=1)
+        else:
+            pred['score'] = np.exp(pred['logits'])/sum(np.exp(pred['logits'])) 
+    return pred
+
+def add_probs_batch(pred):
+    """ Computes predicted score from logits. """
+    if 'score' not in pred.keys():
+        if isinstance(pred['logits'], torch.Tensor):
             pred['score'] = torch.nn.functional.softmax(pred['logits'], dim=0)
         else:
             pred['score'] = np.exp(pred['logits'])/sum(np.exp(pred['logits'])) 
@@ -315,7 +324,7 @@ def wrap_text(text, num_indents=6, width=100):
     """ Util for pretty printing. """
 
     indent = "".join(['\t' for _ in range(num_indents)])
-    return textwrap.fill(text, subsequent_indent = indent, width=width)
+    return textwrap.fill(text, subsequent_indent=indent, width=width)
 
 
 def html_highlight_diffs(orig, edited, tokenizer_wrapper):
@@ -324,8 +333,8 @@ def html_highlight_diffs(orig, edited, tokenizer_wrapper):
     orig = orig.replace("<br ", "<-br ").replace(" .", ".")
     edited = edited.replace("<br ", "<-br ").replace(" .", ".")
 
-    orig_tok = tokenizer_wrapper.tokenize(orig)
-    edited_tok = tokenizer_wrapper.tokenize(edited)
+    orig_tok = tokenizer_wrapper(orig)
+    edited_tok = tokenizer_wrapper(edited)
 
     orig_text_tok = [t.text for t in orig_tok]
     edited_text_tok = [t.text for t in edited_tok]
@@ -336,7 +345,7 @@ def html_highlight_diffs(orig, edited, tokenizer_wrapper):
     marked_original = orig 
     for idx in reversed(orig_mark_indices):
         token = orig_tok[idx]
-        start, end = token.idx, token.idx_end
+        start, end = token.idx, token.idx + len(token)
         if start == None or end == None:
             logger.info(token, start, end)
         marked_original = marked_original[:start] + "<b>" + \
@@ -345,7 +354,7 @@ def html_highlight_diffs(orig, edited, tokenizer_wrapper):
     marked_edited = edited.replace("<br />", "<-br />") 
     for idx in reversed(edited_mark_indices):
         token = edited_tok[idx]
-        start, end = token.idx, token.idx_end
+        start, end = token.idx, token.idx + len(token)
         if start == None or end == None:
             logger.info(token, start, end)
         marked_edited = marked_edited[:start] + "<b>" + \

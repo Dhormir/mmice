@@ -34,18 +34,18 @@ class StageOneDataset(Dataset):
     def __getitem__(self, index):
         input_text = self.masked_strings[index]
         label_text = self.targets[index]
-        source = self.tokenizer.batch_encode_plus([input_text],
-                                                  truncation=True,
-                                                  padding='max_length',
-                                                  pad_to_max_length=True,
-                                                  max_length=self.max_length,
-                                                  return_tensors='pt')
-        target = self.tokenizer.batch_encode_plus([label_text],
-                                                  truncation=True,
-                                                  padding='max_length',
-                                                  pad_to_max_length=True,
-                                                  max_length=self.max_length,
-                                                  return_tensors='pt')
+        source = self.tokenizer([input_text],
+                                truncation=True,
+                                padding='max_length',
+                                pad_to_max_length=True,
+                                max_length=self.max_length,
+                                return_tensors='pt')
+        target = self.tokenizer([label_text],
+                                truncation=True,
+                                padding='max_length',
+                                pad_to_max_length=True,
+                                max_length=self.max_length,
+                                return_tensors='pt')
 
         source_ids = source['input_ids'].squeeze()
         source_mask = source['attention_mask'].squeeze()

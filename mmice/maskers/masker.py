@@ -42,10 +42,11 @@ class Masker():
         Returns:
             list: list of masked inputs/targets where each input has one word replaced by a sentinel token.
         """
-        editor_tokens = self.editor_tok_wrapper.tokenize(editable_seq)
+        editor_tokenized_input = self.editor_tok_wrapper(editable_seq)
         inputs_targets = list()
-        for token in editor_tokens:
-            token_start, token_end = token.idx, token.idx_end
+        for idx, _ in enumerate(editor_tokenized_input.tokens()[:-1]):
+            token_span = editor_tokenized_input.token_to_chars(idx)
+            token_start, token_end = token_span.start, token_span.end
             masked_seq = editable_seq[:token_start] + self._get_sentinel_token(0) + editable_seq[token_end:]
             label = self._get_sentinel_token(0) + editable_seq[token_start:token_end] + self._get_sentinel_token(1)
             inputs_targets.append((masked_seq, label))
