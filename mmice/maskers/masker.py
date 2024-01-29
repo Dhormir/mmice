@@ -73,6 +73,15 @@ class Masker():
             return " <extra_id_" + str(idx) + ">"
         return "<extra_id_" + str(idx) + ">"
 
+    def _get_mask_token(self):
+        """
+        Helper method to get mask token based
+
+        Returns:
+            string : mask token
+        """
+        return "[MASK]"
+
     def _get_grouped_mask_indices(self, editable_seq, editor_mask_indices, **kwargs):
         """
         Groups consecutive mask indices.
@@ -160,8 +169,12 @@ class Masker():
             if span_char_end <= span_char_start:
                 logger.info("Esta pasando algo raro!!")
                 raise MaskError
-
-            label = self._get_sentinel_token(span_idx) + masked_seg[span_char_start:span_char_end] + label
-            masked_seg = masked_seg[:span_char_start] + self._get_sentinel_token(span_idx) + masked_seg[span_char_end:]
+            if "t5-" in self.editor_tok_wrapper.name_or_path:
+                label = self._get_sentinel_token(span_idx) + masked_seg[span_char_start:span_char_end] + label
+                masked_seg = masked_seg[:span_char_start] + self._get_sentinel_token(span_idx) + masked_seg[span_char_end:]
+            elif "bert" in self.editor_tok_wrapper.name_or_path:
+                masked_seg = masked_seg[:span_char_start] + self._get_mask_token() + masked_seg[span_char_end:]
             span_idx -= 1
+        if "bert" in self.editor_tok_wrapper.name_or_path:
+            label = editable_seq
         return grpd_editor_mask_indices, editor_mask_indices, masked_seg, label

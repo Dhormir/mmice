@@ -1,5 +1,6 @@
 from transformers import T5ForConditionalGeneration, T5Config, \
-    T5TokenizerFast, MT5ForConditionalGeneration, MT5Config
+    T5TokenizerFast, MT5ForConditionalGeneration, MT5Config, \
+    BertForMaskedLM, BertTokenizerFast, BertConfig
 from transformers import pipeline
 from datasets import load_dataset
 from munch import Munch
@@ -14,6 +15,9 @@ import sys
 import os
 
 from typing import List, Optional, Any
+
+# Local imports
+from .task_loader import load_chilean_hate
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -30,6 +34,7 @@ AVAILABLE_MODELS = [
                     "google/mt5-large",
                     "google/mt5-xl",
                     "google/mt5-xxl",
+                    "bert-base-uncased",
                     ]
 
 ####################################################################
@@ -43,8 +48,8 @@ def get_shared_parsers():
     meta_parser = argparse.ArgumentParser()
     meta_parser.add_argument("-task", required=True, 
             help='Name of task. Currently, only RACE, IMDB, \
-                    and Newsgroups are supported.', 
-            choices=['race', 'imdb', 'newsgroups'])
+                Newsgroups and ChileanHate are supported.', 
+            choices=['race', 'imdb', 'newsgroups', 'chileanhate'])
     meta_parser.add_argument("-results_dir", default="results", 
             help='Results dir. Where to store results.')
 
@@ -180,20 +185,26 @@ def clean_text(example, special_chars=["\n", "\t", "\x85", "\x97", "#", "<br />"
     for char in special_chars:
         if char in text:
             text = text.replace(char, " ")
-    example['text'] = text.encode()
+    example['text'] = text.encode().lower()
     return example
 
 def get_dataset_reader(task_name, split='train'):
-    task_options = ["imdb", "race", "newsgroups"]
+    task_options = ["imdb", "race", "newsgroups", "chileanhate"]
     if task_name not in task_options:
         raise NotImplementedError(f"Task {task_name} not implemented; \
                 must be one of {task_options}")
-    if task_name == "imdb":
+    elif task_name == "imdb":
         return load_dataset("imdb", split=split).map(clean_text)
     elif task_name == "race":
         return load_dataset("race")
     elif task_name == "newsgroups":
         return load_dataset("newsgroup")
+    # Example for new tasks
+    elif task_name == "chileanhate":
+        task_data_dir = os.path.join('data', task_name)
+        data_files = [os.path.join(task_data_dir, "tweets_train.csv"),
+                      os.path.join(task_data_dir, "tweets_test.csv")]
+        return load_chilean_hate(data_files=data_files)[split].map(clean_text)
 
 
 def format_classif_input(inp, label):
@@ -209,7 +220,7 @@ def format_multiple_choice_input(context, question, options, answer_idx):
 
 
 def load_predictor(task, predictor_folder="trained_predictors/"):
-    task_options = ["imdb", "race", "newsgroups"]
+    task_options = ["imdb", "race", "newsgroups", "chileanhate"]
     if task not in task_options:
         raise NotImplementedError(f"Task {task} not implemented; \
                 must be one of {task_options}")
@@ -248,12 +259,20 @@ def load_base_editor(model_name, max_length=700, editor_path=None):
                                                     model_max_length=max_length,
                                                     truncation=True,
                                                     padding=True)
-    else:
+    elif "t5-" in model_name:
         model_config = T5Config.from_pretrained(model_name)
         model = T5ForConditionalGeneration.from_pretrained(editor_model_path,
                                                            config=model_config)
         tokenizer = T5TokenizerFast.from_pretrained(model_name,
                                                     legacy=False,
+                                                    model_max_length=max_length,
+                                                    truncation=True,
+                                                    padding=True)
+    elif "bert" in model_name:
+        model_config = BertConfig.from_pretrained(model_name)
+        model = BertForMaskedLM.from_pretrained(editor_model_path,
+                                                config=model_config)
+        tokenizer = BertTokenizerFast.from_pretrained(model_name,
                                                     model_max_length=max_length,
                                                     truncation=True,
                                                     padding=True)
