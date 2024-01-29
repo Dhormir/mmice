@@ -50,8 +50,6 @@ class StageOneDataset(Dataset):
         source_ids = source['input_ids'].squeeze()
         source_mask = source['attention_mask'].squeeze()
         target_ids = target['input_ids'].squeeze()
-        # Not really used, can probably be removed
-        # target_mask = target['attention_mask'].squeeze()
         eos_id = torch.LongTensor([self.tokenizer.encode(label_text,
                                                          truncation=True,
                                                          padding='max_length',

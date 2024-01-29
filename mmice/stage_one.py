@@ -43,8 +43,7 @@ def train_epoch(epoch, editor_tokenizer, editor_model, train_data_loader, optimi
     # Train Epoch Progress bar
     progress_bar = tqdm(train_data_loader,
                         total=len(train_data_loader),
-                        disable=not ACCELERATOR.is_local_main_process,
-                        position=0, leave=True,)
+                        disable=not ACCELERATOR.is_local_main_process,)
     progress_bar.set_description('Training loop progress')
 
     for batch in train_data_loader:
@@ -90,8 +89,7 @@ def validate_epoch(epoch, editor_tokenizer, editor_model, val_data_loader):
     # This progress bar can be greatly improved.
     progress_bar = tqdm(val_data_loader,
                         total=len(val_data_loader),
-                        desc='Validation loop progress',
-                        position=0, leave=True,)
+                        desc='Validation loop progress',)
     for batch in val_data_loader:
         lm_labels = batch['target_ids']
         lm_labels[lm_labels[:, :] == editor_tokenizer.pad_token_id] = -100
@@ -145,6 +143,7 @@ def get_datasets(predictor, dataset_reader, masker, data_dir, train_inputs, val_
 
         train_csv = pd.read_csv(train_data_path, sep="\t")
         val_csv = pd.read_csv(val_data_path, sep="\t")
+        print(train_csv.columns)
 
         train_dataset = StageOneDataset(editor_tokenizer,
                                         max_length=args.model.model_max_length,
@@ -233,7 +232,7 @@ def get_task_data(args, dataset_reader):
         train_labels (_type_): _description_
         val_labels (_type_): _description_
     """
-    if args.meta.task == "imdb":
+    if args.meta.task in ["imdb", "chileanhate"]:
         train_data, val_data = dataset_reader.train_test_split(train_size=args.train.data_split_ratio).values()
         train_inputs, train_labels = train_data["text"], train_data["label"]
         val_inputs, val_labels = val_data["text"], val_data["label"]

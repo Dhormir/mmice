@@ -3,11 +3,15 @@ import sys
 import torch
 import nltk
 import numpy as np
+from tqdm.auto import tqdm
 
 import time
 import logging
 import os
 import heapq
+
+import torch
+from torch.utils.data import Dataset, DataLoader
 
 from transformers import T5TokenizerFast
 from transformers import T5ForConditionalGeneration, MT5ForConditionalGeneration
@@ -27,34 +31,55 @@ logger.setLevel(logging.INFO)
 ############################## Utils ###############################
 ####################################################################
 
+class CustomTextDataset(Dataset):
+    def __init__(self, text, labels):
+        self.labels = labels
+        self.text = text
+
+    def __len__(self):
+        return len(self.labels)
+    
+    def __getitem__(self, idx):
+        label = self.labels[idx]
+        text = self.text[idx]
+        sample = {"text": text, "label": label}
+        return sample
+
+
 
 class EditEvaluator():
     def __init__(
         self,
         fluency_model_name="t5-small",
-        fluency_masker=RandomMasker(None, T5TokenizerFast.from_pretrained("t5-small", model_max_length=700), 700)
+        fluency_masker=RandomMasker(None, T5TokenizerFast.from_pretrained("t5-small",
+                                                                          model_max_length=700,
+                                                                          legacy=False), 700)
     ):
         self.device = get_device()
         if "mt5" not in fluency_model_name:
             self.fluency_model = T5ForConditionalGeneration.from_pretrained(fluency_model_name).to(self.device)
         else:
             self.fluency_model = MT5ForConditionalGeneration.from_pretrained(fluency_model_name).to(self.device)
-        self.fluency_tokenizer = T5TokenizerFast.from_pretrained(fluency_model_name,  model_max_length=700)
+        self.fluency_tokenizer = T5TokenizerFast.from_pretrained(fluency_model_name,
+                                                                 model_max_length=700,
+                                                                 legacy=False)
         self.fluency_masker = fluency_masker 
 
-    def score_fluency(self, sent):
+    def score_fluency(self, sent, batch_size=64):
         temp_losses = []
-        masked_strings, span_labels = \
-                self.fluency_masker.get_all_masked_strings(sent)
-        for masked, label in zip(masked_strings, span_labels):
-            input_ids = self.fluency_tokenizer(masked,
+        masked_strings, span_labels = self.fluency_masker.get_all_masked_strings(sent)
+
+        fluency_data = CustomTextDataset(masked_strings, span_labels)
+        fluency_dataloader = DataLoader(fluency_data, batch_size=batch_size)
+        
+        for batch in fluency_dataloader:
+            input_ids = self.fluency_tokenizer(batch['text'],
                                                truncation=True,
                                                padding='max_length',
                                                pad_to_max_length=True,
                                                max_length=700,
-                                               return_tensors="pt")
-            input_ids = input_ids.to(self.device)
-            labels = self.fluency_tokenizer(label,
+                                               return_tensors="pt").to(self.device)
+            labels = self.fluency_tokenizer(batch['label'],
                                             truncation=True,
                                             padding='max_length',
                                             pad_to_max_length=True,
@@ -69,7 +94,7 @@ class EditEvaluator():
             del input_ids
             del labels
             del loss
-            torch.cuda.empty_cache()
+        torch.cuda.empty_cache()
         avg_loss = sum(temp_losses)/len(temp_losses)
         return avg_loss
     
