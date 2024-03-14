@@ -456,6 +456,7 @@ class GradientMasker(Masker):
         # Get num words to return
         if num_return_toks is None:
             num_return_toks = math.ceil(self.mask_frac * len(ordered_word_indices_by_grad))
+
         highest_editor_tok_indices = []
         for idx in ordered_word_indices_by_grad:
             if idx not in highest_editor_tok_indices:

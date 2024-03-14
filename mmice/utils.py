@@ -35,6 +35,7 @@ AVAILABLE_MODELS = [
                     "google/mt5-xl",
                     "google/mt5-xxl",
                     "bert-base-uncased",
+                    "dccuchile/bert-base-spanish-wwm-uncased",
                     ]
 
 ####################################################################
@@ -52,9 +53,12 @@ def get_shared_parsers():
             choices=['race', 'imdb', 'newsgroups', 'chileanhate'])
     meta_parser.add_argument("-results_dir", default="results", 
             help='Results dir. Where to store results.')
+    meta_parser.add_argument("-lang", default="en",
+            help='Task language. Indicates the language of the task.',
+            choices=['en', 'es'])
 
     mask_parser = argparse.ArgumentParser()
-    mask_parser.add_argument("-mask_type", default="random", 
+    mask_parser.add_argument("-mask_type", default="random",
             choices=["grad", "random"])
     mask_parser.add_argument("-grad_type", default="normal_l1", 
             choices=["integrated_l1", "integrated_signed", "normal_l1", \
@@ -206,9 +210,13 @@ def get_dataset_reader(task_name, split='train'):
                       os.path.join(task_data_dir, "tweets_test.csv")]
         return load_chilean_hate(data_files=data_files)[split].map(clean_text)
 
+# Languages format
+LANGUAGES_FORMAT = {"en": {"label": "label", "input": "input"},
+                    "es": {"label": "etiqueta", "input": "entrada"},
+                    }
 
-def format_classif_input(inp, label):
-    return "label: " + str(label) + ". input: " + str(inp)
+def format_classif_input(inp, label, lang):
+    return f"{LANGUAGES_FORMAT[lang]['label']}: " + str(label) + f". {LANGUAGES_FORMAT[lang]['input']}: " + str(inp)
 
 
 def format_multiple_choice_input(context, question, options, answer_idx):

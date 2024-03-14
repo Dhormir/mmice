@@ -100,6 +100,10 @@ class Masker():
         """
         if editor_mask_indices is None:
             editor_mask_indices = self._get_mask_indices(editable_seq=editable_seq, **kwargs)
+        
+        # Removes [CLS] token index
+        if "bert" in self.editor_tok_wrapper.name_or_path and 0 in editor_mask_indices:
+            editor_mask_indices.remove(0)
 
         new_editor_mask_indices = set(editor_mask_indices)
         grouped_editor_mask_indices = [list(group) for group in mit.consecutive_groups(sorted(new_editor_mask_indices))]
@@ -141,7 +145,7 @@ class Masker():
             grpd_editor_mask_indices: grouped editor mask indices
             editor_mask_indices: editor mask indices
             masked_seg: masked editable_seq
-            label: lable string
+            label: label string
         """
         editor_tokenized = self.editor_tok_wrapper(editable_seq,
                                                    truncation=True,
@@ -150,6 +154,7 @@ class Masker():
                                                                   editor_tokenized=editor_tokenized,
                                                                   editor_tokens=editor_tokenized.tokens(),
                                                                   **kwargs)
+        
         span_idx = len(grpd_editor_mask_indices) - 1
         label = self._get_sentinel_token(len(grpd_editor_mask_indices))
         masked_seg = editable_seq
@@ -173,8 +178,15 @@ class Masker():
                 label = self._get_sentinel_token(span_idx) + masked_seg[span_char_start:span_char_end] + label
                 masked_seg = masked_seg[:span_char_start] + self._get_sentinel_token(span_idx) + masked_seg[span_char_end:]
             elif "bert" in self.editor_tok_wrapper.name_or_path:
-                masked_seg = masked_seg[:span_char_start] + self._get_mask_token() + masked_seg[span_char_end:]
+                masked_seg = self.mask_bert_string(span, masked_seg, editor_tokenized)
             span_idx -= 1
         if "bert" in self.editor_tok_wrapper.name_or_path:
             label = editable_seq
         return grpd_editor_mask_indices, editor_mask_indices, masked_seg, label
+
+    def mask_bert_string(self, span, editable_seg, editor_tokenized):
+        masked_seg = editable_seg
+        for token in span[::-1]:
+            span_char = editor_tokenized.token_to_chars(token)
+            masked_seg = masked_seg[:span_char.start] + self._get_mask_token() + masked_seg[span_char.end:]
+        return masked_seg

@@ -143,16 +143,17 @@ def get_datasets(predictor, dataset_reader, masker, data_dir, train_inputs, val_
 
         train_csv = pd.read_csv(train_data_path, sep="\t")
         val_csv = pd.read_csv(val_data_path, sep="\t")
-        print(train_csv.columns)
 
         train_dataset = StageOneDataset(editor_tokenizer,
                                         max_length=args.model.model_max_length,
                                         masked_strings=train_csv['inputs'],
-                                        targets=train_csv['targets'])
+                                        targets=train_csv['targets'],
+                                        lang=args.meta.lang)
         val_dataset = StageOneDataset(editor_tokenizer,
                                       max_length=args.model.model_max_length,
                                       masked_strings=val_csv['inputs'],
-                                      targets=val_csv['targets'])
+                                      targets=val_csv['targets'],
+                                      lang=args.meta.lang)
 
     # Else, create data by calling create_inputs() function in dataset.py
     else:
@@ -161,14 +162,18 @@ def get_datasets(predictor, dataset_reader, masker, data_dir, train_inputs, val_
                     f"{args.misc.target_label}")
         # For RACE, pass dataset_reader to create_inputs() to correctly truncate
         if args.meta.task == "race":
-            train_dataset = RaceStageOneDataset(editor_tokenizer, max_length=args.model.model_max_length)
+            train_dataset = RaceStageOneDataset(editor_tokenizer, max_length=args.model.model_max_length,
+                                                lang=args.meta.lang)
             train_dataset.create_inputs(dataset_reader, train_inputs, train_labels,
                                         predictor, masker, target_label=args.misc.target_label)
-            val_dataset = RaceStageOneDataset(editor_tokenizer, max_length=args.model.model_max_length)
+            val_dataset = RaceStageOneDataset(editor_tokenizer, max_length=args.model.model_max_length,
+                                              lang=args.meta.lang)
             val_dataset.create_inputs(dataset_reader, val_inputs, val_labels, predictor, masker, target_label=args.misc.target_label)
         else:
-            train_dataset = StageOneDataset(editor_tokenizer, max_length=args.model.model_max_length)
-            val_dataset = StageOneDataset(editor_tokenizer, max_length=args.model.model_max_length)
+            train_dataset = StageOneDataset(editor_tokenizer, max_length=args.model.model_max_length,
+                                            lang=args.meta.lang)
+            val_dataset = StageOneDataset(editor_tokenizer, max_length=args.model.model_max_length,
+                                          lang=args.meta.lang)
             train_dataset.create_inputs(train_inputs, train_labels, predictor,
                                         masker, target_label=args.misc.target_label)
             val_dataset.create_inputs(val_inputs, val_labels, predictor,

@@ -123,10 +123,20 @@ class Editor():
                 self._prepare_input_for_editor(inp, grad_pred_idx,
                                                sorted_token_indices=sorted_token_indices)
 
-        edited_editable_segs = self._sample_edits(targ_pred_label, masked_inp, targ_pred_idx,
-                                                  num_spans=num_spans,
-                                                  orig_spans=orig_spans,
-                                                  max_length=max_length)
+        if "t5" in self.tokenizer.name_or_path:
+            edited_editable_segs = self._sample_edits(targ_pred_label, masked_inp, targ_pred_idx,
+                                                    num_spans=num_spans,
+                                                    orig_spans=orig_spans,
+                                                    max_length=max_length)
+        elif "bert" in self.tokenizer.name_or_path:
+            edited_editable_segs = self._sample_edits_bert(targ_pred_label, masked_inp, targ_pred_idx,
+                                                           num_spans=num_spans,
+                                                           orig_spans=orig_spans,
+                                                           max_length=max_length)
+        else:
+            raise NotImplementedError(f"Model {self.editor_tok_wrapper.name_or_path} not implemented; \
+                must be bert or t5 style")
+
         edited_cands = [None] * len(edited_editable_segs)
         for idx, es in enumerate(edited_editable_segs):
             cand = {}
@@ -160,7 +170,6 @@ class Editor():
 
     def _process_gen(self, masked_inp, gen, sentinel_toks):
         """ Helper function that processes decoded gen """
-
         bad_gen = False
         first_bad_tok = None
 
@@ -241,6 +250,7 @@ class Editor():
             ctr += 1
 
         return bad_gen, first_bad_tok, temp, gen 
+
 
     def _get_pred_with_replacement(self, temp_gen, orig_spans):
         """ Replaces sentinel tokens in gen with orig text and returns pred. 
@@ -428,6 +438,134 @@ class Editor():
                 if predicted_label == contrast_label: 
                     edited_editable_segs.append(temp)
 
+            highest_indices = np.argsort(targ_probs)[-k_intermediate:]
+            filt_indices = [idx for idx in highest_indices \
+                    if targ_probs[idx] != -1]
+            editor_inputs = [new_editor_inputs[idx] for idx in filt_indices]
+            editable_segs = [new_editable_segs[idx] for idx in filt_indices]
+            span_end_offsets = [new_span_end_offsets[idx] for idx in filt_indices] 
+            orig_token_ids_lst = [new_orig_token_ids_lst[idx] for idx in filt_indices] 
+            orig_spans_lst = [new_orig_spans_lst[idx] for idx in filt_indices] 
+            masked_token_ids_lst = [new_masked_token_ids_lst[idx] for idx in filt_indices] 
+
+            sys.stdout.flush()
+            num_sub_rounds += 1
+
+        for idx, es in enumerate(edited_editable_segs):
+            assert es.find("</s>") in [len(es)-4, -1]
+            edited_editable_segs[idx] = es.replace("</s>", " ")
+            assert "<extra_id_" not in es, \
+                    f"Extra id token should not be in edited inp: {es}"
+            assert "</s>" not in es, \
+                    f"</s> should not be in edited inp: {edited_editable_segs[idx][0]}"
+
+
+        return set(edited_editable_segs)
+
+
+    def _sample_edits_bert(self, targ_pred_label, masked_editable_seg, targ_pred_idx,
+                           num_spans=None, orig_spans=None, max_length=None):
+        """ Returns self.num_gens copies of masked_editable_seg with infills.
+        Called by get_candidates(). """
+        
+        self.editor_model.eval()       
+
+        editor_input = self.get_editor_input(targ_pred_label, masked_editable_seg)
+        
+        editor_inputs = [editor_input]
+        editable_segs = [masked_editable_seg]
+        span_end_offsets = [num_spans]
+        orig_token_ids_lst = [self.tokenizer.encode(orig_spans)[1:-1]]
+        orig_spans_lst = [orig_spans]
+        masked_token_ids_lst = [self.tokenizer.encode(editor_input)[1:-1]]
+        k_intermediate = 3 
+
+        mask_token = self.tokenizer.encode("[MASK]")
+        logger.info(f'mask token: {mask_token[1]}')
+
+        num_sub_rounds = 0
+        edited_editable_segs = [] # list of tuples with meta information
+
+        max_sub_rounds = 3
+        while editable_segs != []:
+            # Break if past max sub rounds 
+            if num_sub_rounds > max_sub_rounds:
+                break
+            
+            new_editor_inputs = []
+            new_editable_segs = []
+            new_span_end_offsets = []
+            new_orig_token_ids_lst = []
+            new_orig_spans_lst = []
+            new_masked_token_ids_lst = []
+
+            iterator = enumerate(zip(
+                editor_inputs, editable_segs, masked_token_ids_lst, 
+                span_end_offsets, orig_token_ids_lst, orig_spans_lst))
+            for inp_idx, (editor_input, editable_seg, masked_token_ids, \
+                    span_end, orig_token_ids, orig_spans) in iterator: 
+
+                num_inputs = len(editor_inputs)
+                num_return_seqs = int(math.ceil(self.num_gens/num_inputs)) \
+                        if num_sub_rounds != 0 else self.num_gens
+                num_beams = self.num_beams if num_sub_rounds == 0 \
+                        else num_return_seqs
+                last_sentin = f"<extra_id_{span_end}>"
+                end_token_id = self.tokenizer.convert_tokens_to_ids(last_sentin)
+                masked_token_ids_tensor = torch.LongTensor(masked_token_ids).unsqueeze(0).to(self.device)
+                
+                max_length = max(int(4/3 * max_length), 200)
+                logger.info(wrap_text("Sub round: " + str(num_sub_rounds)))    
+                logger.info(wrap_text(f"Input: {inp_idx + 1} of {num_inputs}"))
+                logger.info(wrap_text("INPUT TO EDITOR: " + \
+                        f"{self.tokenizer.decode(masked_token_ids)}"))
+                with torch.no_grad():
+                    outputs =self.editor_model(input_ids=masked_token_ids_tensor,)
+                    predictions = outputs[0]
+                    sorted_preds, sorted_idx = predictions[0].sort(dim=-1, descending=True)
+                del masked_token_ids_tensor 
+                torch.cuda.empty_cache()
+
+                batch_decoded = []
+                for k in range(num_return_seqs):
+                    predicted_index = [i[k].item() for i in sorted_idx][1:]
+                    batch_decoded.append(self.tokenizer.decode(predicted_index))
+                num_gens_with_pad = 0
+                num_bad_gens = 0
+                temp_edited_editable_segs = []
+                logger.info(wrap_text("first batch: " + batch_decoded[0]))
+                for batch_idx, batch in enumerate(batch_decoded):
+                    temp = batch
+                    if "<pad>" in batch[4:]:
+                        num_gens_with_pad += 1
+
+                    temp_edited_editable_segs.append(temp)
+                    assert "<extra_id" not in temp
+                    
+                    assert "</s>" not in temp
+
+                edited_editable_segs.extend(temp_edited_editable_segs)
+            if new_editor_inputs == []:
+                break
+
+            _, unique_batch_indices = np.unique(new_editor_inputs, return_index=True)
+
+            targ_probs = [-1] * len(edited_editable_segs)
+            for idx in enumerate(edited_editable_segs):
+                ot = new_orig_spans_lst[idx].replace("<pad>", "")
+                temp = edited_editable_segs[idx]
+                edit_preds = self.predictor(temp)[0]
+                # predictions are always sorted by score from higher to lower
+                edit_probs = [edit_pred['score'] for edit_pred in edit_preds]
+                edit_labels = [edit_pred['label'] for edit_pred in edit_preds]
+                targ_pred_idx = targ_pred_idx if edit_labels[targ_pred_idx] == targ_pred_label else edit_labels.index(targ_pred_label)
+                #preds = add_probs(preds)
+                targ_probs[idx] = edit_probs[targ_pred_idx]
+                predicted_label = edit_preds[0]["label"]
+                contrast_label = edit_labels[targ_pred_idx]
+                if predicted_label == contrast_label: 
+                    edited_editable_segs.append(temp)
+            
             highest_indices = np.argsort(targ_probs)[-k_intermediate:]
             filt_indices = [idx for idx in highest_indices \
                     if targ_probs[idx] != -1]

@@ -12,4 +12,4 @@ python test_2.py -task imdb -editor_path results/imdb/editors/mmice-test-editor-
 # First Stage
 python test_1.py -task imdb -stage1_exp mmice-test-editor-bert -mask_type grad -model_name bert-base-uncased -train_batch_size 6 -val_batch_size 6 -lr 1e-3
 # Second Stage
-python test_2.py -task imdb -editor_path results/imdb/editors/mmice-test-editor-ber/checkpoints -stage2_exp mmice-test-editor-bert -n_samples 500 -model_name bert-base-uncased
+python test_2.py -task imdb -editor_path results/imdb/editors/mmice-test-editor-bert/checkpoints -stage2_exp mmice-test-editor-bert -n_samples 500 -model_name bert-base-uncased
