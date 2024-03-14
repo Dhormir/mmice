@@ -20,11 +20,12 @@ class StageOneDataset(Dataset):
     from task training inputs. Inherits from torch.utils.data.Dataset. """
 
 
-    def __init__(self, tokenizer, max_length=512, masked_strings=None, targets=None):
+    def __init__(self, tokenizer, max_length=512, masked_strings=None, targets=None, lang='en'):
         self.tokenizer = tokenizer
         self.masked_strings = masked_strings
         self.targets = targets
         self.max_length = max_length
+        self.lang = lang
 
 
     def __len__(self):
@@ -91,7 +92,9 @@ class StageOneDataset(Dataset):
                 _, _, masked_input, target = masker.get_masked_string(orig_inp,
                                                                       pred_idx=label_idx,
                                                                       predictor_tok_end_idx=predictor_tok_end_idx)
-                masked_string = format_classif_input(masked_input, label_to_use) 
+                masked_string = format_classif_input(masked_input,
+                                                     label_to_use,
+                                                     self.lang) 
                 masked_strings.append(masked_string)
                 targets.append(target)
                 

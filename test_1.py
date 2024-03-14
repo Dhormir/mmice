@@ -10,7 +10,7 @@ if __name__ == '__main__':
 
     args = get_args("stage1")
     predictor = pipeline("sentiment-analysis",
-                         "distilbert-base-uncased-finetuned-sst-2-english",
+                         "./trained_predictors/chileanhate/model",
                          device=get_device(),
                          max_length=512,
                          padding=True,

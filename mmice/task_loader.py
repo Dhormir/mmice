@@ -1,8 +1,6 @@
 import pandas as pd
 from datasets import Dataset
 
-DATA_PATH = "data/chileanhate/"
-
 # Task loader script in case someone wants to expand and add a new task
 # just create a loader here that returns a Hugginface Dataset object
 # with text and label columns
