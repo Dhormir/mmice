@@ -2,7 +2,7 @@ from accelerate import Accelerator
 from torch.utils.data import DataLoader
 import torch
 
-from tqdm.autonotebook import tqdm
+from tqdm.auto import tqdm
 import pandas as pd
 import numpy as np
 import os
@@ -51,7 +51,7 @@ def train_epoch(epoch, editor_tokenizer, editor_model, train_data_loader, optimi
         lm_labels = batch['target_ids']
         lm_labels[lm_labels[:, :] == editor_tokenizer.pad_token_id] = -100
         ids = batch['source_ids']
-        outputs = editor_model(input_ids=ids, labels=lm_labels)
+        outputs = editor_model(input_ids=ids, labels=lm_labels, attention_mask=batch['source_mask'])
         loss = outputs.loss
         total_loss += loss.item()
 
@@ -95,7 +95,7 @@ def validate_epoch(epoch, editor_tokenizer, editor_model, val_data_loader):
         lm_labels[lm_labels[:, :] == editor_tokenizer.pad_token_id] = -100
         ids = batch['source_ids']
 
-        outputs = editor_model(input_ids=ids, labels=lm_labels)
+        outputs = editor_model(input_ids=ids, labels=lm_labels, attention_mask=batch['source_mask'])
         loss = outputs.loss
         total_loss += loss.item()
 
@@ -282,7 +282,12 @@ def run_train_editor(predictor, dataset_reader, args):
     for dir in [task_dir, data_dir, stage_one_dir, checkpoint_dir]:
         if not os.path.exists(dir):
             os.makedirs(dir)
-    
+
+    # setting log file    
+    meta_log_file = os.path.join(stage_one_dir, "meta_log.txt")
+    # add output to log file
+    logger.addHandler(logging.FileHandler(meta_log_file))
+        
     # Save args
     args_path = os.path.join(stage_one_dir, "stage_one_args.json")
     write_args(args_path, args)

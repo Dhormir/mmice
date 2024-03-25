@@ -1,5 +1,6 @@
 from transformers import T5ForConditionalGeneration, T5Config, \
     T5TokenizerFast, MT5ForConditionalGeneration, MT5Config, \
+    UMT5ForConditionalGeneration, UMT5Config, \
     BertForMaskedLM, BertTokenizerFast, BertConfig
 from transformers import pipeline
 from datasets import load_dataset
@@ -34,6 +35,10 @@ AVAILABLE_MODELS = [
                     "google/mt5-large",
                     "google/mt5-xl",
                     "google/mt5-xxl",
+                    "google/umt5-small",
+                    "google/umt5-base",
+                    "google/umt5-xl",
+                    "google/umt5-xxl",
                     "bert-base-uncased",
                     "dccuchile/bert-base-spanish-wwm-uncased",
                     ]
@@ -68,7 +73,7 @@ def get_shared_parsers():
 
     model_parser = argparse.ArgumentParser()
     model_parser.add_argument("-model_name", default="t5-small", 
-            help='Name of editor model. Currently, T5 and MT5 are supported.')
+            help='Name of editor model. Currently, T5, MT5, UMT5 and BERT are supported.')
     model_parser.add_argument("-model_max_length", default=700, type=int,
             help="Maximum number of tokens that Editor model can take")
     return {"meta": meta_parser, "mask": mask_parser, "model": model_parser}
@@ -256,7 +261,20 @@ def load_base_editor(model_name, max_length=700, editor_path=None):
     if model_name not in AVAILABLE_MODELS:
         raise NotImplementedError(f"Model {model_name} not implemented; \
                 must be one of {AVAILABLE_MODELS}")
-    if "mt5-" in model_name:
+    
+    if "umt5-" in model_name:
+        model_config = UMT5Config.from_pretrained(model_name)
+        model = UMT5ForConditionalGeneration.from_pretrained(editor_model_path,
+                                                            config=model_config)
+        # We use legacy false to prevent warning
+        # something was misplaced in version 4.36.2 because its throwing the warning anyway
+        tokenizer = T5TokenizerFast.from_pretrained(model_name,
+                                                    legacy=False,
+                                                    model_max_length=max_length,
+                                                    truncation=True,
+                                                    padding=True)
+    
+    elif "mt5-" in model_name:
         model_config = MT5Config.from_pretrained(model_name)
         model = MT5ForConditionalGeneration.from_pretrained(editor_model_path,
                                                             config=model_config)
