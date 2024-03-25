@@ -1,6 +1,6 @@
 import torch
 from torch.utils.data import Dataset
-from tqdm.autonotebook import tqdm
+from tqdm.auto import tqdm
 import numpy as np
 import logging
 

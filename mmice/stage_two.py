@@ -1,7 +1,7 @@
 import torch
 import os
 import csv
-from tqdm.autonotebook import tqdm
+from tqdm.auto import tqdm
 import re
 import numpy as np
 import time

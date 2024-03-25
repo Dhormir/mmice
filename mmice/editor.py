@@ -6,6 +6,7 @@ import sys
 import more_itertools as mit
 import math
 import logging
+from tqdm.auto import tqdm
 
 # Local imports
 from .utils import get_device, get_predictor_tokenized, wrap_text
@@ -481,7 +482,7 @@ class Editor():
         k_intermediate = 3 
 
         mask_token = self.tokenizer.encode("[MASK]")
-        logger.info(f'mask token: {mask_token[1]}')
+        logger.info(f'mask token: {mask_token}')
 
         num_sub_rounds = 0
         edited_editable_segs = [] # list of tuples with meta information
@@ -510,8 +511,7 @@ class Editor():
                         if num_sub_rounds != 0 else self.num_gens
                 num_beams = self.num_beams if num_sub_rounds == 0 \
                         else num_return_seqs
-                last_sentin = f"<extra_id_{span_end}>"
-                end_token_id = self.tokenizer.convert_tokens_to_ids(last_sentin)
+                
                 masked_token_ids_tensor = torch.LongTensor(masked_token_ids).unsqueeze(0).to(self.device)
                 
                 max_length = max(int(4/3 * max_length), 200)
@@ -519,17 +519,11 @@ class Editor():
                 logger.info(wrap_text(f"Input: {inp_idx + 1} of {num_inputs}"))
                 logger.info(wrap_text("INPUT TO EDITOR: " + \
                         f"{self.tokenizer.decode(masked_token_ids)}"))
-                with torch.no_grad():
-                    outputs =self.editor_model(input_ids=masked_token_ids_tensor,)
-                    predictions = outputs[0]
-                    sorted_preds, sorted_idx = predictions[0].sort(dim=-1, descending=True)
-                del masked_token_ids_tensor 
-                torch.cuda.empty_cache()
 
-                batch_decoded = []
-                for k in range(num_return_seqs):
-                    predicted_index = [i[k].item() for i in sorted_idx][1:]
-                    batch_decoded.append(self.tokenizer.decode(predicted_index))
+                batch_decoded = get_prediction_II(sent=editable_seg, tokenizer=self.tokenizer,
+                                                  model=self.editor_model, device=self.device,
+                                                  k=num_return_seqs)
+
                 num_gens_with_pad = 0
                 num_bad_gens = 0
                 temp_edited_editable_segs = []
@@ -784,3 +778,67 @@ class RaceEditor(Editor):
 
         masked_inp = masked_inp.replace(self.tokenizer.eos_token, " ")
         return num_spans, token_ind_to_mask, masked_inp, orig_spans, max_length
+
+
+
+# We pass the whole masked sentence once to the model
+def get_prediction(sent, tokenizer, model, device, k=2):
+    token_ids = tokenizer.encode(sent,
+                                truncation=True, return_tensors='pt').to(device)
+    masked_position = (token_ids.squeeze() == tokenizer.mask_token_id).nonzero()
+    masked_pos = [mask.item() for mask in masked_position]
+    with torch.no_grad():
+        output = model(token_ids)
+    last_hidden_state = output[0].squeeze()
+    list_of_guesses = []
+
+    for index, mask_index in enumerate(masked_pos):
+        mask_hidden_state = last_hidden_state[mask_index]
+        idx = torch.topk(mask_hidden_state, k=k, dim=0)[1]
+
+        if len(list_of_guesses) == 0:
+          list_of_guesses = fill_mask_sentence(mask_index, idx, token_ids.squeeze())[:k]
+        else:
+          reconstructed_guesses = []
+          for guess in list_of_guesses[:k]:
+            reconstructed_guesses += fill_mask_sentence(mask_index, idx, guess)[:k]
+          list_of_guesses = reconstructed_guesses
+
+    # guesses sorted in descending probability order
+    #for guess in list_of_guesses:
+    #  print(f'guess: {tokenizer.decode(guess)}')
+    torch.cuda.empty_cache()
+
+    return [tokenizer.decode(guess).replace('[CLS]', '').replace('[SEP]', '') for guess in list_of_guesses[:k]]
+
+def fill_mask_sentence(mask_index, fill_token_ids, token_ids):
+  filled_sentences = []
+  for idx in fill_token_ids:
+    token_ids.squeeze()[mask_index] = idx
+    filled_sentences.append(token_ids.clone())
+  token_ids.squeeze()[mask_index] = 0
+  return filled_sentences
+
+
+# We pass the masked sentence several times until we fill it
+def get_prediction_II(sent, tokenizer, model, device, k=2, fill_order='left'):
+    order = {'left': 1, 'right': -1}
+    token_ids = tokenizer.encode(sent,
+                                 truncation=True,
+                                 return_tensors='pt').to(device)
+    masked_position = (token_ids.squeeze() == tokenizer.mask_token_id).nonzero()
+    masked_pos = [mask.item() for mask in masked_position][::order[fill_order]]
+    list_of_ids = [token_ids]
+    for index, mask_index in enumerate(masked_pos):
+      list_of_guesses = []
+      for ids in list_of_ids:
+        with torch.no_grad():
+          output = model(ids)
+        last_hidden_state = output[0].squeeze()
+        mask_hidden_state = last_hidden_state[mask_index]
+        idx = torch.topk(mask_hidden_state, k=k, dim=0)[1]
+        list_of_guesses += fill_mask_sentence(mask_index, idx, ids)
+      list_of_ids = list_of_guesses[:k]
+
+    torch.cuda.empty_cache()
+    return [tokenizer.decode(guess.squeeze()).replace('[CLS]', '').replace('[SEP]', '') for guess in list_of_ids]
