@@ -129,12 +129,14 @@ class Editor():
                                                     num_spans=num_spans,
                                                     orig_spans=orig_spans,
                                                     max_length=max_length)
+            #print('In Here? I')
         elif "bert" in self.tokenizer.name_or_path:
             edited_editable_segs = self._sample_edits_bert(targ_pred_label, masked_inp, targ_pred_idx,
                                                            num_spans=num_spans,
                                                            orig_spans=orig_spans,
                                                            max_length=max_length)
         else:
+            #print('In here? II')
             raise NotImplementedError(f"Model {self.editor_tok_wrapper.name_or_path} not implemented; \
                 must be bert or t5 style")
 
@@ -321,6 +323,7 @@ class Editor():
                 masked_token_ids_tensor = torch.LongTensor(masked_token_ids + [eos_token_id]).unsqueeze(0).to(self.device)
                 bad_tokens_ids = [[x] for x in range(sentinel_start, end_token_id)] + [[eos_token_id]]
                 max_length = max(int(4/3 * max_length), 200)
+                #logger.info(wrap_text(f"max lenght:{max_length}\nmax new tokens: {max_length - len(masked_token_ids_tensor.squeeze())}"))
                 logger.info(wrap_text("Sub round: " + str(num_sub_rounds)))    
                 logger.info(wrap_text(f"Input: {inp_idx + 1} of {num_inputs}"))
                 logger.info(wrap_text(f"Last sentinel: {last_sentin}"))
@@ -338,7 +341,9 @@ class Editor():
                             early_stopping=True if num_beams > 1 else False,
                             length_penalty=self.length_penalty, 
                             bad_words_ids=bad_tokens_ids, 
-                            max_length=max_length) 
+                            max_length=max_length,
+                            do_samepl=True,
+                            ) 
 
                     elif self.generate_type == "sample":
                         output = self.editor_model.generate(
@@ -351,7 +356,8 @@ class Editor():
                             eos_token_id=end_token_id,
                             length_penalty=self.length_penalty,
                             bad_words_ids=bad_tokens_ids, 
-                            max_length=max_length) 
+                            max_length=max_length,
+                            ) 
                 output = output.cpu()
                 del masked_token_ids_tensor 
                 torch.cuda.empty_cache()
@@ -413,11 +419,11 @@ class Editor():
                         new_orig_spans_lst.append(new_orig_spans)
 
                     else:
+                        # All generations must be editable in order to be useful
                         temp_edited_editable_segs.append(temp)
-                        assert "<extra_id" not in temp
-                    
-                    assert "</s>" not in temp
+                        assert "<extra_id" not in temp, "We didnt generate editable segments"
 
+                    assert "</s>" not in temp
                 edited_editable_segs.extend(temp_edited_editable_segs)
             if new_editor_inputs == []:
                 break
@@ -520,9 +526,9 @@ class Editor():
                 logger.info(wrap_text("INPUT TO EDITOR: " + \
                         f"{self.tokenizer.decode(masked_token_ids)}"))
 
-                batch_decoded = get_prediction_II(sent=editable_seg, tokenizer=self.tokenizer,
-                                                  model=self.editor_model, device=self.device,
-                                                  k=num_return_seqs)
+                batch_decoded = get_beam_prediction(sent=editable_seg, tokenizer=self.tokenizer,
+                                                    model=self.editor_model, device=self.device,
+                                                    k=num_return_seqs, fill_order='right')
 
                 num_gens_with_pad = 0
                 num_bad_gens = 0
@@ -780,45 +786,51 @@ class RaceEditor(Editor):
         return num_spans, token_ind_to_mask, masked_inp, orig_spans, max_length
 
 
-
-# We pass the whole masked sentence once to the model
-def get_prediction(sent, tokenizer, model, device, k=2):
-    token_ids = tokenizer.encode(sent,
-                                truncation=True, return_tensors='pt').to(device)
+# Beam search version
+def get_beam_prediction(sent, tokenizer, model, k=2):
+    token_ids = tokenizer.encode(sent, return_tensors='pt')
     masked_position = (token_ids.squeeze() == tokenizer.mask_token_id).nonzero()
     masked_pos = [mask.item() for mask in masked_position]
+
     with torch.no_grad():
         output = model(token_ids)
+
     last_hidden_state = output[0].squeeze()
-    list_of_guesses = []
+    curr_beam = []
 
-    for index, mask_index in enumerate(masked_pos):
+    for index, mask_index in tqdm(enumerate(masked_pos), total=len(masked_pos)):
         mask_hidden_state = last_hidden_state[mask_index]
-        idx = torch.topk(mask_hidden_state, k=k, dim=0)[1]
+        rankings, idx = torch.topk(mask_hidden_state, k=k, dim=0, sorted=True)
 
-        if len(list_of_guesses) == 0:
-          list_of_guesses = fill_mask_sentence(mask_index, idx, token_ids.squeeze())[:k]
+        if len(curr_beam) == 0:
+          curr_beam = list(zip(rankings, fill_mask_sentence(mask_index, idx, token_ids.squeeze())))
         else:
-          reconstructed_guesses = []
-          for guess in list_of_guesses[:k]:
-            reconstructed_guesses += fill_mask_sentence(mask_index, idx, guess)[:k]
-          list_of_guesses = reconstructed_guesses
+          prev_beam = curr_beam.copy()
+          topk_list = list(zip(rankings, idx))
+          while len(topk_list) != 0:
+            value = topk_list.pop()
+            for index, cand in enumerate(curr_beam):
+              if cand == prev_beam[index] and cand[0] + value[0] > cand[0]:
+                curr_beam[index] = (cand[0] + value[0], fill_mask_sentence(mask_index, value[1], cand[1]))
+              elif cand != prev_beam[index] and prev_beam[index][0] + value[0] > curr_beam[index][0]:
+                curr_beam[index] = (prev_beam[index][0] + value[0], fill_mask_sentence(mask_index, value[1], prev_beam[index][1]))
 
     # guesses sorted in descending probability order
-    #for guess in list_of_guesses:
-    #  print(f'guess: {tokenizer.decode(guess)}')
-    torch.cuda.empty_cache()
+    for cand in curr_beam:
+      print(f'cand: {tokenizer.decode(cand[1])}')
 
-    return [tokenizer.decode(guess).replace('[CLS]', '').replace('[SEP]', '') for guess in list_of_guesses[:k]]
+    return curr_beam
 
 def fill_mask_sentence(mask_index, fill_token_ids, token_ids):
   filled_sentences = []
+  if fill_token_ids.numel() < 2:
+    token_ids.squeeze()[mask_index] = fill_token_ids
+    return token_ids.clone()
   for idx in fill_token_ids:
     token_ids.squeeze()[mask_index] = idx
     filled_sentences.append(token_ids.clone())
   token_ids.squeeze()[mask_index] = 0
   return filled_sentences
-
 
 # We pass the masked sentence several times until we fill it
 def get_prediction_II(sent, tokenizer, model, device, k=2, fill_order='left'):

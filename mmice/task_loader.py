@@ -14,3 +14,14 @@ def load_chilean_hate(data_files=None, column_names=['text', 'Odio']):
     data = data.rename_column('Odio', 'label')
     data = data.shuffle(42)
     return data.train_test_split(train_size=.89)
+
+def load_42k_hcuch(data_files=None, column_names=['hallazgos', 'impresion', 'nodulos']):
+    kwargs = {"encoding" : "utf-8", "sep" : "|", "dtype": {'nodulos' : int}}
+    df_list = [pd.read_csv(data_file, **kwargs) for data_file in data_files]
+    df = pd.concat(df_list)[column_names]
+    df['text'] = df['hallazgos'] # + " " +  df['impresion']
+    
+    data = Dataset.from_pandas(df).remove_columns(['hallazgos', 'impresion', '__index_level_0__'])
+    data = data.rename_column('nodulos', 'label')
+    data = data.shuffle(42)
+    return data.train_test_split(train_size=.75)

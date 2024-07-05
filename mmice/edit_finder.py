@@ -14,7 +14,7 @@ import torch
 from torch.utils.data import Dataset, DataLoader
 
 from transformers import T5TokenizerFast
-from transformers import T5ForConditionalGeneration, MT5ForConditionalGeneration
+from transformers import T5ForConditionalGeneration, MT5ForConditionalGeneration, UMT5ForConditionalGeneration
 
 # Local imports
 from .maskers.random_masker import RandomMasker
@@ -56,10 +56,12 @@ class EditEvaluator():
                                                                           legacy=False), 700)
     ):
         self.device = get_device()
-        if "mt5" not in fluency_model_name:
-            self.fluency_model = T5ForConditionalGeneration.from_pretrained(fluency_model_name).to(self.device)
-        else:
+        if "umt5" in fluency_model_name:
+            self.fluency_model = UMT5ForConditionalGeneration.from_pretrained(fluency_model_name).to(self.device)
+        elif "mt5" in fluency_model_name:
             self.fluency_model = MT5ForConditionalGeneration.from_pretrained(fluency_model_name).to(self.device)
+        else:
+            self.fluency_model = T5ForConditionalGeneration.from_pretrained(fluency_model_name).to(self.device)
         self.fluency_tokenizer = T5TokenizerFast.from_pretrained(fluency_model_name,
                                                                  model_max_length=700,
                                                                  legacy=False)
@@ -104,6 +106,21 @@ class EditEvaluator():
             return lev/len(orig_sent)
         else:
             return lev
+
+    def score_minimality_embeddings(self, orig_sent, edited_sent, normalized=True):
+        enc_orig_sent = self.fluency_tokenizer.encode(orig_sent)
+        enc_edited_sent = self.fluency_tokenizer.encode(edited_sent)
+        orig_sent_embeddings = self.fluency_model.embddings.word_embeddings(enc_orig_sent)
+        edited_sent_embeddings = self.fluency_model.embddings.word_embeddings(enc_edited_sent)
+
+        cos = torch.nn.CosineSimilarity(dim=1)
+        # We use the centroid of each sentence and detemine how similar they are
+        output = cos(orig_sent_embeddings.sum(dim=1) / orig_sent_embeddings.size()[1],
+                     edited_sent_embeddings.sum(dim=1) / edited_sent_embeddings.size()[1])
+        # As an alternative we can also determine it using the mean vector similarity
+        # output = cos(orig_sent_embeddings, edited_sent_embeddings)
+        # output = outpu.mean()
+        return output.item()
 
 def sort_instances_by_score(scores, *args):
     """ Sorts *args in order of decreasing scores """
@@ -154,7 +171,6 @@ def get_scores(predictor, instance_candidates, contrast_pred_idx, k=None):
 
 class EditFinder():
     """ Runs search algorithms to find edits. """
-
     def __init__(
         self,
         predictor, 
@@ -191,6 +207,7 @@ class EditFinder():
 
         # we fixed this to a simple BatchEncoding
         instance_cands = [es if es else inp for inp, es in zip(input_cands, editable_seg_cands)]
+        #logger.info(f'instance_cands length:\n{len(instance_cands)}')
         instance_cands = self.predictor.tokenizer(instance_cands, padding=True,
                                                   truncation=True, return_tensors='pt')
         # TODO: does this happen? might get [] if all generations are bad, but 
@@ -224,7 +241,6 @@ class EditFinder():
             
             if pred_idx == contrast_pred_idx:
                 found_cand = True
-            
                 # Score minimality because we order edits by minimality scores
                 if edit_evaluator is not None:
                     minimality = edit_evaluator.score_minimality(

@@ -97,7 +97,7 @@ class StageOneDataset(Dataset):
                                                      self.lang) 
                 masked_strings.append(masked_string)
                 targets.append(target)
-                
+
                 verbose = True if i % 500 == 0 else False
                 if verbose:
                     rounded_mask_frac = round(masker.mask_frac, 3)

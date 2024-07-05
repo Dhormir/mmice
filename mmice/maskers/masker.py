@@ -69,8 +69,8 @@ class Masker():
         # for some reason on current version needs a space to be recognized
         # its seems to be a current config issue on model page.
         # Also we are assuming you are not loading the tokenizer from a path
-        if 'mt5-' in self.editor_tok_wrapper.name_or_path:
-            return " <extra_id_" + str(idx) + ">"
+        #if 'umt5' not in self.editor_tok_wrapper.name_or_path and 'mt5-' in self.editor_tok_wrapper.name_or_path:
+        #    return " <extra_id_" + str(idx) + ">"
         return "<extra_id_" + str(idx) + ">"
 
     def _get_mask_token(self):
@@ -174,7 +174,7 @@ class Masker():
             if span_char_end <= span_char_start:
                 logger.info("Esta pasando algo raro!!")
                 raise MaskError
-            if "t5-" in self.editor_tok_wrapper.name_or_path:
+            if "t5" in self.editor_tok_wrapper.name_or_path:
                 label = self._get_sentinel_token(span_idx) + masked_seg[span_char_start:span_char_end] + label
                 masked_seg = masked_seg[:span_char_start] + self._get_sentinel_token(span_idx) + masked_seg[span_char_end:]
             elif "bert" in self.editor_tok_wrapper.name_or_path:
