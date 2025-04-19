@@ -354,7 +354,7 @@ class EditFinder():
 
         start_time = time.time()
         orig_preds = self.predictor(editable_seg)[0]
-        logger.info(f"orig_preds: {orig_preds}")
+        # logger.info(f"orig_preds: {orig_preds}")
         # transformers pipeline always return in decreasing order
         orig_pred_label = orig_preds[0]["label"]
         orig_pred_idx = self.labels_to_ints[orig_pred_label]
@@ -381,8 +381,11 @@ class EditFinder():
 
             # Iterate through in reversed order (highest probabilities first)
             iterator = enumerate(reversed(sorted(prev_beam)))
-            for beam_elem_idx, (score, _, input_cand) in iterator: 
-
+            for beam_elem_idx, (score, _, input_cand) in iterator:
+                input_cand = self.editor.truncate_editable_segs(
+                    [input_cand],
+                    inp=orig_input
+                )[0]
                 sys.stdout.flush()
                 logger.info(wrap_text(f"Updating beam for: {input_cand}"))
                 logger.info(wrap_text(f"Edit round: {num_rounds} (1-indexed)"))
@@ -397,7 +400,7 @@ class EditFinder():
                     pred_idx = contrast_pred_idx
 
                 sorted_token_indices = self.editor.get_sorted_token_indices(input_cand, pred_idx)
-
+                
                 if self.search_method == "binary":
                     self.binary_search_edit(edit_list, input_cand, 
                             self.labels_to_ints[contrast_label], num_rounds, 
