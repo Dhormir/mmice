@@ -10,7 +10,7 @@ if __name__ == '__main__':
 
     args = get_args("stage1")
     predictor = pipeline("text-classification",
-                         model="trained_predictors/42k_HCUCH/models",
+                         model="trained_predictors/imdb/models",
                          device=get_device(),
                          max_length=512,
                          padding=True,

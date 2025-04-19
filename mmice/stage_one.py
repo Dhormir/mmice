@@ -237,11 +237,13 @@ def get_task_data(args, dataset_reader):
         train_labels (_type_): _description_
         val_labels (_type_): _description_
     """
-    if args.meta.task in ["imdb", "chileanhate", "42k_hcuch"]:
+    if args.meta.task in ["imdb", "newsgroups", "chileanhate", "42k_hcuch"]:
         train_data, val_data = dataset_reader.train_test_split(train_size=args.train.data_split_ratio).values()
         train_inputs, train_labels = train_data["text"], train_data["label"]
         val_inputs, val_labels = val_data["text"], val_data["label"]
-    
+    else:
+        logger.error("Unsupported dataset")
+        raise Exception("Unsupported Task dataset")
     logger.info(f"Num train for Editor fine-tuning: {len(train_inputs)}")
     logger.info(f"Num val for Editor fine-tuning: {len(val_inputs)}")
 

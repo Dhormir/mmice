@@ -72,7 +72,7 @@ def get_shared_parsers():
                     l1/signed/l2 determine how to aggregate over the emb dim.")
 
     model_parser = argparse.ArgumentParser()
-    model_parser.add_argument("-model_name", default="t5-small", 
+    model_parser.add_argument("-model_name", default="t5-base", 
             help='Name of editor model. Currently, T5, MT5, UMT5 and BERT are supported.')
     model_parser.add_argument("-model_max_length", default=700, type=int,
             help="Maximum number of tokens that Editor model can take")
@@ -112,9 +112,9 @@ def get_stage_two_parsers():
     search_parser = argparse.ArgumentParser()
     search_parser.add_argument("-max_mask_frac", default=0.55, type=float,
             help="Maximum mask fraction")
-    search_parser.add_argument("-max_edit_rounds", default=3, type=int,
+    search_parser.add_argument("-max_edit_rounds", default=2, type=int,
             help="Maximum number of edit rounds")
-    search_parser.add_argument("-max_search_levels", default=4, type=int,
+    search_parser.add_argument("-max_search_levels", default=3, type=int,
             help="Maximum number of search levels")
     search_parser.add_argument("-beam_width", default=3, type=int,
             help="Beam width for beam search over edits.")
@@ -207,7 +207,7 @@ def get_dataset_reader(task_name, split='train'):
     elif task_name == "race":
         return load_dataset("race")
     elif task_name == "newsgroups":
-        return load_dataset("newsgroup")
+        return load_dataset("SetFit/20_newsgroups", split=split).filter(lambda example:  example['label'] in set(range(16))).map(clean_text)
     # Example for new tasks
     elif task_name == "chileanhate":
         task_data_dir = os.path.join('data', task_name)
@@ -247,8 +247,8 @@ def load_predictor(task, predictor_folder="trained_predictors/"):
     if not os.path.exists(predictor_path):
         raise ValueError(f"Cannot find predictor path {predictor_path}")
     logger.info(f"Loading Predictor from: {predictor_path}")
-
-    predictor = pipeline("sentiment-analysis",
+    task_name = "text-classification" if task == task_options[2] else "sentiment-analysis"
+    predictor = pipeline(task_name,
                          model=predictor_path,
                          device=get_device(),
                          padding=True,
@@ -343,6 +343,7 @@ def get_predictor_tokenized(predictor, sequence):
     """
     return predictor.tokenizer(sequence,
                                truncation=True,
+                               return_tensors="pt",
                                max_length=predictor.tokenizer.model_max_length)
 
 

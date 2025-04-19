@@ -67,19 +67,16 @@ class Editor():
 
     # Why manually truncate when its already available in transformers ???
     def truncate_editable_segs(self, editable_segs, **kwargs):
-        """ Truncate editable segments to max length of Predictor. """ 
+        """ Truncate editable segments to max length of Predictor. """
         trunc_es = [None] * len(editable_segs)
         for s_idx, s in enumerate(editable_segs):
             assert(len(s) > 0)
             predic_tokenized = get_predictor_tokenized(self.predictor, s)
-            
             max_predic_tokens = self.predictor.tokenizer.model_max_length
-            if len(predic_tokenized) >= max_predic_tokens: 
-                for idx, token in enumerate(reversed(predic_tokenized)):
-                    if token.idx_end is not None:
-                        last_idx = token.idx_end
-                        break
-                trunc_es[s_idx] = s[0:last_idx]
+            if len(predic_tokenized["input_ids"][0]) >= max_predic_tokens: 
+                trunc_es[s_idx] = self.predictor.tokenizer.decode(
+                    predic_tokenized["input_ids"][0],
+                    skip_special_tokens=True)
             else:
                 trunc_es[s_idx] = s
         return trunc_es
@@ -100,7 +97,13 @@ class Editor():
         """ Get token indices to mask, sorted by gradient value """
         # this first call quite literally does nothing!!!
         editable_seg = inp
-        editor_tokenized = self.tokenizer(editable_seg)
+        editor_tokenized = self.tokenizer(
+            editable_seg,
+            truncation=True, 
+            max_length=self.max_length,
+            return_tensors="pt"
+        )
+        editable_seg = self.tokenizer.decode(editor_tokenized["input_ids"][0])
         sorted_token_indices = self.masker.get_important_editor_tokens(editable_seg, grad_pred_idx, editor_tokenized,
                                                                        num_return_toks=len(editor_tokenized.input_ids))
         return sorted_token_indices 
