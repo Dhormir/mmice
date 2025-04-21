@@ -72,7 +72,7 @@ def get_shared_parsers():
                     l1/signed/l2 determine how to aggregate over the emb dim.")
 
     model_parser = argparse.ArgumentParser()
-    model_parser.add_argument("-model_name", default="t5-base", 
+    model_parser.add_argument("-model_name", default="t5-small", 
             help='Name of editor model. Currently, T5, MT5, UMT5 and BERT are supported.')
     model_parser.add_argument("-model_max_length", default=700, type=int,
             help="Maximum number of tokens that Editor model can take")
@@ -82,10 +82,10 @@ def get_shared_parsers():
 def get_stage_one_parsers():
     """ Helper function to get parsers for Stage 1. """
     train_parser = argparse.ArgumentParser()
-    train_parser.add_argument("-train_batch_size", default=4, type=int)
+    train_parser.add_argument("-train_batch_size", default=1, type=int)
     train_parser.add_argument("-val_batch_size", default=1, type=int)
-    train_parser.add_argument("-num_epochs", default=10, type=int)
-    train_parser.add_argument("-lr", default=5e-5, type=float)
+    train_parser.add_argument("-num_epochs", default=5, type=int)
+    train_parser.add_argument("-lr", default=1e-4, type=float)
     train_parser.add_argument("-seed", default=42, type=int)
     train_parser.add_argument("-data_split_ratio", default=0.75, type=float)
 
@@ -112,9 +112,9 @@ def get_stage_two_parsers():
     search_parser = argparse.ArgumentParser()
     search_parser.add_argument("-max_mask_frac", default=0.55, type=float,
             help="Maximum mask fraction")
-    search_parser.add_argument("-max_edit_rounds", default=2, type=int,
+    search_parser.add_argument("-max_edit_rounds", default=3, type=int,
             help="Maximum number of edit rounds")
-    search_parser.add_argument("-max_search_levels", default=3, type=int,
+    search_parser.add_argument("-max_search_levels", default=4, type=int,
             help="Maximum number of search levels")
     search_parser.add_argument("-beam_width", default=3, type=int,
             help="Beam width for beam search over edits.")
@@ -271,7 +271,8 @@ def load_base_editor(model_name, max_length=700, editor_path=None):
     if "umt5-" in model_name:
         model_config = UMT5Config.from_pretrained(model_name, force_download=True)
         model = UMT5ForConditionalGeneration.from_pretrained(editor_model_path,
-                                                            config=model_config)
+                                                             torch_dtype=torch.bfloat16,
+                                                             config=model_config)
         # We use legacy false to prevent warning
         # something was misplaced in version 4.36.2 because its throwing the warning anyway
         tokenizer = T5TokenizerFast.from_pretrained(model_name,
@@ -282,6 +283,7 @@ def load_base_editor(model_name, max_length=700, editor_path=None):
     elif "mt5-" in model_name:
         model_config = MT5Config.from_pretrained(model_name, force_download=True)
         model = MT5ForConditionalGeneration.from_pretrained(editor_model_path,
+                                                            torch_dtype=torch.bfloat16,
                                                             config=model_config)
         # We use legacy false to prevent warning
         # something was misplaced in version 4.36.2 because its throwing the warning anyway
@@ -292,6 +294,7 @@ def load_base_editor(model_name, max_length=700, editor_path=None):
     elif "t5-" in model_name:
         model_config = T5Config.from_pretrained(model_name, force_download=True)
         model = T5ForConditionalGeneration.from_pretrained(editor_model_path,
+                                                           torch_dtype=torch.bfloat16,
                                                            config=model_config)
         tokenizer = T5TokenizerFast.from_pretrained(model_name,
                                                     model_max_length=max_length,
