@@ -49,7 +49,7 @@ def train_epoch(epoch, editor_tokenizer, editor_model, train_data_loader, optimi
     for batch in train_data_loader:
         # We might want to check this?
         lm_labels = batch['target_ids']
-        lm_labels[lm_labels[:, :] == editor_tokenizer.pad_token_id] = -100
+        # lm_labels[lm_labels[:, :] == editor_tokenizer.pad_token_id] = -100
         ids = batch['source_ids']
         # outputs = editor_model(input_ids=ids, labels=lm_labels, attention_mask=batch['source_mask'])
         outputs = editor_model(input_ids=ids, labels=lm_labels, )
@@ -93,7 +93,7 @@ def validate_epoch(epoch, editor_tokenizer, editor_model, val_data_loader):
                         desc='Validation loop progress',)
     for batch in val_data_loader:
         lm_labels = batch['target_ids']
-        lm_labels[lm_labels[:, :] == editor_tokenizer.pad_token_id] = -100
+        # lm_labels[lm_labels[:, :] == editor_tokenizer.pad_token_id] = -100
         ids = batch['source_ids']
 
         # outputs = editor_model(input_ids=ids, labels=lm_labels, attention_mask=batch['source_mask'])
