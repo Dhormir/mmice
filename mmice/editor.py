@@ -344,8 +344,7 @@ class Editor():
                             early_stopping=True if num_beams > 1 else False,
                             length_penalty=self.length_penalty, 
                             bad_words_ids=bad_tokens_ids, 
-                            max_length=max_length,
-                            do_samepl=True,
+                            max_length=max_length
                             ) 
 
                     elif self.generate_type == "sample":
