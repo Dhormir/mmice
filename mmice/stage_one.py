@@ -46,16 +46,15 @@ def train_epoch(epoch, editor_tokenizer, editor_model, train_data_loader, optimi
                         disable=not ACCELERATOR.is_local_main_process,)
     progress_bar.set_description('Training loop progress')
 
-    for batch in train_data_loader:
+    for i, batch in enumerate(train_data_loader, 1):
         # We might want to check this?
         lm_labels = batch['target_ids']
-        # lm_labels[lm_labels[:, :] == editor_tokenizer.pad_token_id] = -100
+        lm_labels[lm_labels == editor_tokenizer.pad_token_id] = -100
         ids = batch['source_ids']
         # outputs = editor_model(input_ids=ids, labels=lm_labels, attention_mask=batch['source_mask'])
         outputs = editor_model(input_ids=ids, labels=lm_labels, )
         loss = outputs.loss
         total_loss += loss.item()
-
         ACCELERATOR.backward(loss)
         # Gradient acummulation?
         optimizer.step()
@@ -63,7 +62,7 @@ def train_epoch(epoch, editor_tokenizer, editor_model, train_data_loader, optimi
         del lm_labels
         del ids
         progress_bar.update()
-        progress_bar.set_postfix_str(f"Batch Loss: {loss.item():.4f}")
+        progress_bar.set_postfix_str(f"Loss: {total_loss/i:.4f}")
     progress_bar.close()
     avg_loss = total_loss/len(train_data_loader)
     logger.info(f'Epoch: {epoch},' +
@@ -91,11 +90,10 @@ def validate_epoch(epoch, editor_tokenizer, editor_model, val_data_loader):
     progress_bar = tqdm(val_data_loader,
                         total=len(val_data_loader),
                         desc='Validation loop progress',)
-    for batch in val_data_loader:
+    for i, batch in enumerate(val_data_loader, 1):
         lm_labels = batch['target_ids']
-        # lm_labels[lm_labels[:, :] == editor_tokenizer.pad_token_id] = -100
+        lm_labels[lm_labels == editor_tokenizer.pad_token_id] = -100
         ids = batch['source_ids']
-
         # outputs = editor_model(input_ids=ids, labels=lm_labels, attention_mask=batch['source_mask'])
         outputs = editor_model(input_ids=ids, labels=lm_labels, )
         loss = outputs.loss
@@ -104,11 +102,11 @@ def validate_epoch(epoch, editor_tokenizer, editor_model, val_data_loader):
         del lm_labels
         del ids
         progress_bar.update()
-        progress_bar.set_postfix_str(f"Batch Loss: {loss.item():.4f}")
+        progress_bar.set_postfix_str(f"Loss: {total_loss/i:.4f}")
     progress_bar.close()
     avg_loss = total_loss/len(val_data_loader)
     logger.info(f'Epoch: {epoch},' +
-                f' Avg Vatidation Batch Loss:  {avg_loss}')
+                f' Avg Validation Batch Loss:  {avg_loss}')
     return avg_loss
 
 
