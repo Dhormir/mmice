@@ -103,9 +103,9 @@ class Editor():
             max_length=self.max_length,
             return_tensors="pt"
         )
-        editable_seg = self.tokenizer.decode(editor_tokenized["input_ids"][0])
+        editable_seg = self.tokenizer.decode(editor_tokenized["input_ids"][0][:-1])
         sorted_token_indices = self.masker.get_important_editor_tokens(editable_seg, grad_pred_idx, editor_tokenized,
-                                                                       num_return_toks=len(editor_tokenized.input_ids))
+                                                                       num_return_toks=len(editor_tokenized.input_ids[0]))
         return sorted_token_indices 
 
     def get_candidates(self, targ_pred_label, inp, targ_pred_idx, orig_pred_idx,
@@ -132,14 +132,12 @@ class Editor():
                                                     num_spans=num_spans,
                                                     orig_spans=orig_spans,
                                                     max_length=max_length)
-            #print('In Here? I')
         elif "bert" in self.tokenizer.name_or_path:
             edited_editable_segs = self._sample_edits_bert(targ_pred_label, masked_inp, targ_pred_idx,
                                                            num_spans=num_spans,
                                                            orig_spans=orig_spans,
                                                            max_length=max_length)
         else:
-            #print('In here? II')
             raise NotImplementedError(f"Model {self.editor_tok_wrapper.name_or_path} not implemented; \
                 must be bert or t5 style")
 
