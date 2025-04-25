@@ -25,3 +25,13 @@ def load_42k_hcuch(data_files=None, column_names=['hallazgos', 'impresion', 'nod
     data = data.rename_column('nodulos', 'label')
     data = data.shuffle(42)
     return data.train_test_split(train_size=.75)
+
+def load_semeval_hate(data_files=None, column_names=['text', 'HS']):
+    kwargs = {"encoding" : "utf-8"}
+    df_list = [pd.read_csv(data_file, **kwargs) for data_file in data_files]
+    df = pd.concat(df_list)[column_names]
+    
+    data = Dataset.from_pandas(df).remove_columns(["__index_level_0__"])
+    data = data.rename_column('HS', 'label')
+    data = data.shuffle(42)
+    return data.train_test_split(train_size=.75)
