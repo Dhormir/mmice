@@ -220,3 +220,4 @@ def run_edit_test(args):
                                  None, None, None, None, duration, error])
                 csv_file.flush()
     csv_file.close()
+    logger.info("Successful Execution!!")
