@@ -8,3 +8,4 @@ pandas
 sentencepiece
 tqdm
 transformers
+peft

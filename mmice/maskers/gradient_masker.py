@@ -198,24 +198,49 @@ class GradientMasker(Masker):
             for word_idx, word_token in reversed(list(enumerate(editor_tokens))):
                 # this is not optimized probably change it so it doesnt need the editable sequence and tokenize in a 
                 # previous step instead of perfomer it every time
-                word_token_span = editor_tokenized.token_to_chars(word_idx)
-                if word_token_span is None:
-                    continue
-                # Ensure predic_tok start >= start of last Editor tok
-                if word_idx == len(editor_tokens) - 1 and predic_tok_start >= word_token_span.start:
-                    return_word_idx = word_idx
-                    raise Found
-                # For all other Editor toks, ensure predic_tok start
-                # >= Editor tok start and < next Editor tok start
-                elif predic_tok_start >= word_token_span.start:
-                    for cand_idx, cand_token in enumerate(editor_tokens[word_idx + 1:]):
-                        cand_idx += word_idx
-                        cand_token_span = editor_tokenized.token_to_chars(cand_idx)
-                        if editor_tokens[cand_idx] is None:
-                            continue
-                        elif predic_tok_start < cand_token_span.start:
-                            return_word_idx = word_idx
-                            raise Found
+                if self.editor_tok_wrapper.is_fast:
+                    word_token_span = editor_tokenized.token_to_chars(word_idx)
+                    
+                    if word_token_span is None:
+                        continue
+                    # Ensure predic_tok start >= start of last Editor tok
+                    if word_idx == len(editor_tokens) - 1 and predic_tok_start >= word_token_span.start:
+                        return_word_idx = word_idx
+                        raise Found
+                    # For all other Editor toks, ensure predic_tok start
+                    # >= Editor tok start and < next Editor tok start
+                    elif predic_tok_start >= word_token_span.start:
+                        for cand_idx, cand_token in enumerate(editor_tokens[word_idx + 1:]):
+                            cand_idx += word_idx
+                            cand_token_span = editor_tokenized.token_to_chars(cand_idx)
+
+                            if editor_tokens[cand_idx] is None:
+                                continue
+                            elif predic_tok_start < cand_token_span.start:
+                                return_word_idx = word_idx
+                                raise Found
+                else:
+                    word_token_span = get_token_char_span(editor_tokenized,
+                                                           self.editor_tok_wrapper,
+                                                           word_idx)
+                    if word_token_span[0] is None:
+                        continue
+                    # Ensure predic_tok start >= start of last Editor tok
+                    if word_idx == len(editor_tokens) - 1 and predic_tok_start >= word_token_span[0]:
+                        return_word_idx = word_idx
+                        raise Found
+                    # For all other Editor toks, ensure predic_tok start
+                    # >= Editor tok start and < next Editor tok start
+                    elif predic_tok_start >= word_token_span[0]:
+                        for cand_idx, cand_token in enumerate(editor_tokens[word_idx + 1:]):
+                            cand_idx += word_idx
+                            cand_token_span = editor_tokenized.token_to_chars(cand_idx)
+
+                            if editor_tokens[cand_idx] is None:
+                                continue
+                            elif predic_tok_start < cand_token_span[0]:
+                                return_word_idx = word_idx
+                                raise Found
         except Found:
             # Means it found the index
             pass
