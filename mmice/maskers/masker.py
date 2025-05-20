@@ -2,11 +2,9 @@ import more_itertools as mit
 import logging
 
 from .mask_error import MaskError
-from ..utils import logger
 
-FORMAT = "[%(filename)s:%(lineno)s - %(funcName)20s() ] %(message)s"
-logging.basicConfig(format=FORMAT)
-
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 class Masker():
     """
@@ -100,7 +98,6 @@ class Masker():
         """
         if editor_mask_indices is None:
             editor_mask_indices = self._get_mask_indices(editable_seq=editable_seq, **kwargs)
-        
         # Removes [CLS] token index
         if "bert" in self.editor_tok_wrapper.name_or_path and 0 in editor_mask_indices:
             editor_mask_indices.remove(0)
@@ -150,9 +147,14 @@ class Masker():
         editor_tokenized = self.editor_tok_wrapper(editable_seq,
                                                    truncation=True,
                                                    max_length=self.max_tokens)
+        if  self.editor_tok_wrapper.is_fast:
+            editor_tokens = editor_tokenized.tokens()
+        else:
+            editor_tokens = self.editor_tok_wrapper.convert_ids_to_tokens(editor_tokenized["input_ids"])
+
         grpd_editor_mask_indices = self._get_grouped_mask_indices(editable_seq, editor_mask_indices,
                                                                   editor_tokenized=editor_tokenized,
-                                                                  editor_tokens=editor_tokenized.tokens(),
+                                                                  editor_tokens=editor_tokens,
                                                                   **kwargs)
         
         span_idx = len(grpd_editor_mask_indices) - 1
@@ -179,6 +181,8 @@ class Masker():
                 masked_seg = masked_seg[:span_char_start] + self._get_sentinel_token(span_idx) + masked_seg[span_char_end:]
             elif "bert" in self.editor_tok_wrapper.name_or_path:
                 masked_seg = self.mask_bert_string(span, masked_seg, editor_tokenized)
+            else:
+                logger.info("Alguna wea rara esta pasando")
             span_idx -= 1
         if "bert" in self.editor_tok_wrapper.name_or_path:
             label = editable_seq

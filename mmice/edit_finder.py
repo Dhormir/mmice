@@ -1,5 +1,4 @@
 import sys
-
 import torch
 import nltk
 import numpy as np
@@ -22,9 +21,7 @@ from .maskers.gradient_masker import GradientMasker
 from .utils import get_predictor_tokenized, get_device, add_probs, get_prob_pred \
     ,wrap_text
 
-logger = logging.getLogger("my-logger")
-FORMAT = "[%(filename)s:%(lineno)s - %(funcName)20s() ] %(message)s"
-logging.basicConfig(level=os.environ.get("LOGLEVEL", "INFO"), format=FORMAT)
+logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 ####################################################################
@@ -51,9 +48,10 @@ class EditEvaluator():
     def __init__(
         self,
         fluency_model_name="t5-small",
-        fluency_masker=RandomMasker(None, T5TokenizerFast.from_pretrained("t5-small",
-                                                                          model_max_length=700,
-                                                                          legacy=False), 700)
+        fluency_masker=RandomMasker(None,
+                                    T5TokenizerFast.from_pretrained("t5-small",
+                                                                    model_max_length=700,
+                                                                    legacy=False), 700)
     ):
         self.device = get_device()
         if "umt5" in fluency_model_name:
@@ -277,14 +275,14 @@ class EditFinder():
         mid_mask_frac = (max_mask_frac + min_mask_frac) / 2
 
         if self.verbose:
-            logger.info(wrap_text("binary search mid: " + str(mid_mask_frac)))
+            logger.info(wrap_text(f"binary search mid: {mid_mask_frac}"))
         found_cand = self.run_edit_round(
                             edit_list, input_cand, contrast_pred_idx, num_rounds, 
                             mid_mask_frac, edit_evaluator=edit_evaluator,
                             sorted_token_indices=sorted_token_indices)
         if self.verbose:
-            logger.info(wrap_text("Binary search # levels: " + str(num_levels))) 
-            logger.info(wrap_text("Found cand: " + str(found_cand)))
+            logger.info(wrap_text(f"Binary search # levels: {num_levels}")) 
+            logger.info(wrap_text(f"Found cand: {found_cand}"))
 
         mid_mask_frac = (max_mask_frac + min_mask_frac) / 2
         if num_levels == max_levels: 
@@ -329,8 +327,8 @@ class EditFinder():
                     edit_list, input_cand, contrast_pred_idx, 
                     num_rounds, mask_frac, edit_evaluator=edit_evaluator,
                     sorted_token_indices=sorted_token_indices)
-            logger.info(wrap_text("Linear search mask_frac: " + str(mask_frac)))
-            logger.info(wrap_text("Found cand: " + str(found_cand)))
+            logger.info(wrap_text(f"Linear search mask_frac: {mask_frac}"))
+            logger.info(wrap_text(f"Found cand: {found_cand}"))
             if found_cand:
                 return found_cand
         return found_cand

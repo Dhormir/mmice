@@ -87,7 +87,7 @@ class StageOneDataset(Dataset):
             # If these throws error something is really wrong with the dataset
             label_to_use = label_to_use if label_to_use in labels_to_ints.keys() else predictor.model.config.id2label[label_to_use]
             predictor_tokenized = get_predictor_tokenized(predictor, orig_inp)
-            predictor_tok_end_idx = len(predictor_tokenized.input_ids)
+            predictor_tok_end_idx = predictor_tokenized.input_ids.size(dim=1)
             try:
                 # Q: why make the masker return more that what will be used?
                 # A: Maybe it's for stage two...
