@@ -1,3 +1,5 @@
+import sys
+import io
 import torch
 import os
 import csv
@@ -14,12 +16,18 @@ from .edit_finder import EditFinder, EditEvaluator
 from .editor import Editor, RaceEditor
 from .maskers.gradient_masker import GradientMasker
 
-logger = logging.getLogger("my-logger")
-FORMAT = "[%(filename)s:%(lineno)s - %(funcName)20s() ] %(message)s"
-logging.basicConfig(level=os.environ.get("LOGLEVEL", "INFO"), format=FORMAT)
-logger.setLevel(logging.INFO)
+# Re-wrap stdout with UTF-8 encoding
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="[%(filename)s:%(lineno)s - %(funcName)20s() ] %(message)s",
+)
+logger = logging.getLogger(__name__)
+
 # Random Number Generator
 RNG = np.random.default_rng(seed=42)
+
 
 
 def get_grad_sign_direction(grad_type, grad_pred):
@@ -70,9 +78,9 @@ def load_models(args):
     editor_path = check_editor_path(args.meta.editor_path)
     editor_tokenizer, editor_model = load_base_editor(model_name=args.model.model_name,
                                                       max_length=args.model.model_max_length,
-                                                      editor_path=editor_path)
+                                                      editor_path=editor_path,
+                                                      lora=args.model.lora)
     device = get_device()
-    logger.info(f'Device: {device}')
     editor_model = editor_model.to(device)
     
     sign_direction = get_grad_sign_direction(args.mask.grad_type, args.misc.grad_pred) 
@@ -139,7 +147,7 @@ def run_edit_test(args):
     meta_log_file = os.path.join(stage_two_dir, "meta_log.txt")
     out_file = os.path.join(stage_two_dir, "edits.csv")
     # add output to log file
-    logger.addHandler(logging.FileHandler(meta_log_file))
+    logger.addHandler(logging.FileHandler(meta_log_file, encoding='utf-8'))
    
 
     logger.info(f"Task dir: {task_dir}")
@@ -194,7 +202,7 @@ def run_edit_test(args):
                 sorted_list = edited_list.get_sorted_edits() 
 
             except Exception as e:
-                logger.exception(f"ERROR: Finding edits")
+                logger.exception(f"ERROR: Finding edits:\n{e}")
                 error = True
                 sorted_list = []
 

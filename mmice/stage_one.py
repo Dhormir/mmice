@@ -1,5 +1,6 @@
 from accelerate import Accelerator
 from torch.utils.data import DataLoader
+from peft import get_peft_model, LoraConfig, TaskType
 import torch
 
 from tqdm.auto import tqdm
@@ -266,6 +267,19 @@ def run_train_editor(predictor, dataset_reader, args):
 
     editor_tokenizer, editor_model = load_base_editor(model_name=args.model.model_name,
                                                       max_length=args.model.model_max_length)
+    if args.model.lora:
+        # Define LoRA configuration
+        lora_config = LoraConfig(
+            r=args.train.r,
+            lora_alpha=args.train.lora_alpha,
+            target_modules=["q", "v"],  # LoRA on attention query & value matrices
+            lora_dropout=args.train.lora_dropout,
+            bias=args.train.bias,
+            task_type=args.train.task_type  # Important for T5
+        )
+        # Wrap model with LoRA
+        editor_model = get_peft_model(editor_model, lora_config)
+
     # We use the accelerator to prepare the model
     editor_model = ACCELERATOR.prepare(editor_model)
 
@@ -353,3 +367,6 @@ def run_train_editor(predictor, dataset_reader, args):
                 ACCELERATOR.save_state(best_path, safe_serialization=False)
             progress_bar.set_postfix_str(f"Avg Train Loss: {avg_train_loss:.4f}, Best Validation Loss: {best_val_loss:.4f}")
     progress_bar.close()
+    logger.info(f"Saving pretrained to: {best_path}")
+    ACCELERATOR.load_state(best_path)
+    editor_model.save_pretrained(best_path)

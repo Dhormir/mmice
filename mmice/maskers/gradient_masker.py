@@ -1,6 +1,7 @@
 import math
 import numpy as np
 from typing import List, Dict, Any
+import logging
 
 from torch import cuda, clamp_min
 from torch import Tensor
@@ -10,7 +11,10 @@ from torch.utils.hooks import RemovableHandle
 from .util import batched_span_select
 from .masker import Masker
 from .masker import MaskError
-from ..utils import get_token_offsets_from_text_field_inputs
+from ..utils import get_token_offsets_from_text_field_inputs, get_token_char_span
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 
 class GradientMasker(Masker):
@@ -179,7 +183,11 @@ class GradientMasker(Masker):
         # We determine predictor token position in the editable_sequence
         predic_tok_start = predic_tok_span.start
         predic_tok_end = predic_tok_span.end
-        editor_tokens = editor_tokenized.tokens()
+        
+        if self.editor_tok_wrapper.is_fast:
+            editor_tokens = editor_tokenized.tokens()
+        else:
+            editor_tokens = self.editor_tok_wrapper.convert_ids_to_tokens(editor_tokenized["input_ids"])
         
         if predic_tok_start is None or predic_tok_end is None:
            return [], [], []
@@ -419,7 +427,14 @@ class GradientMasker(Masker):
         tokenized_editable_seq = self.predictor.tokenizer(editable_seq,
                                                           truncation=True,
                                                           max_length=self.predictor.tokenizer.model_max_length)
-        all_predic_toks = tokenized_editable_seq.tokens()
+
+        if self.predictor.tokenizer.is_fast:
+            all_predic_toks = tokenized_editable_seq.tokens()
+        else:
+            all_predic_toks =self.predictor.tokenizer.convert_ids_to_tokens(tokenized_editable_seq["input_ids"])
+
+        #logger.info(f"tokenized_editable_seq:\n{tokenized_editable_seq}")
+        #logger.info(f"all_predic_toks:\n{all_predic_toks}")
         # TODO: Does NOT work for RACE
         # If labeled_instance is not supplied, create one
         if labeled_instance is None:
@@ -435,20 +450,29 @@ class GradientMasker(Masker):
         grad_signed, grad_magnitudes = self._get_gradient_magnitudes(labeled_instance,
                                                                      pred_idx,
                                                                      integrated_grad_steps)
-
+        
         # Include only gradient values for editable parts of the inp
         if predictor_tok_end_idx is not None:
+            #logger.info(f"predictor_tok_end_idx:{predictor_tok_end_idx}")
             if predictor_tok_start_idx is not None:
+                #logger.info(f"predictor_tok_start_idx:{predictor_tok_start_idx}")
                 grad_magnitudes = grad_magnitudes[predictor_tok_start_idx:predictor_tok_end_idx]
                 grad_signed = grad_signed[predictor_tok_start_idx:predictor_tok_end_idx]
             else:
                 grad_magnitudes = grad_magnitudes[:predictor_tok_end_idx]
                 grad_signed = grad_signed[:predictor_tok_end_idx]
-
+        #logger.info(f"grad_signed:\n{grad_signed}\ngrad_magnitudes:\n{grad_magnitudes}")
+        
         # Order Predictor tokens from largest to smallest gradient values
         ordered_predic_tok_indices = np.argsort(grad_magnitudes)[::-1]
-        ordered_word_indices_by_grad = [self._get_word_positions(tokenized_editable_seq.token_to_chars(idx),
-                                                                 editor_tokenized)[0] for idx in ordered_predic_tok_indices if all_predic_toks[idx] not in self.predictor_special_toks]
+        #logger.info(f"type(grad_magnitudes):{type(grad_magnitudes)}")
+        #logger.info(f"np.argsort(grad_magnitudes):\n{np.argsort(grad_magnitudes)}")
+        ordered_word_indices_by_grad = [
+            self._get_word_positions(tokenized_editable_seq.token_to_chars(idx),
+                                     editor_tokenized)[0]
+            for idx in ordered_predic_tok_indices
+            if all_predic_toks[idx] not in self.predictor_special_toks
+        ]
         ordered_word_indices_by_grad = [item for sublist in ordered_word_indices_by_grad for item in sublist]
         # Sanity checks
         self.sanity_check(predictor_tok_end_idx, predictor_tok_start_idx, grad_magnitudes, all_predic_toks)
@@ -468,10 +492,13 @@ class GradientMasker(Masker):
         return highest_editor_tok_indices
 
     def _get_mask_indices(self, **kwargs):
+        # TODO
+        # Check this??
         """ Helper function to get indices of Editor tokens to mask. """
         editable_seq = kwargs.pop('editable_seq')
         pred_idx = kwargs.pop('pred_idx')
         kwargs.pop('editor_tokens')
         editor_tokenized = kwargs.pop('editor_tokenized')
         editor_mask_indices = self.get_important_editor_tokens(editable_seq, pred_idx, editor_tokenized, **kwargs)
+        #logger.info(f"editor_mask_indices:\n{editor_mask_indices}")
         return editor_mask_indices

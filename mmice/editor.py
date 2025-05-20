@@ -2,18 +2,16 @@ import torch
 import numpy as np
 import re
 import os
-import sys
 import more_itertools as mit
 import math
 import logging
 from tqdm.auto import tqdm
+import sys
 
 # Local imports
 from .utils import get_device, get_predictor_tokenized, wrap_text
 
-logger = logging.getLogger("my-logger")
-FORMAT = "[%(filename)s:%(lineno)s - %(funcName)20s() ] %(message)s"
-logging.basicConfig(level=os.environ.get("LOGLEVEL", "INFO"), format=FORMAT)
+logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 class Editor():
@@ -140,6 +138,8 @@ class Editor():
         else:
             raise NotImplementedError(f"Model {self.editor_tok_wrapper.name_or_path} not implemented; \
                 must be bert or t5 style")
+            
+        assert len(edited_editable_segs) > 0, "Generated zero edited_editable_segs"
 
         edited_cands = [None] * len(edited_editable_segs)
         for idx, es in enumerate(edited_editable_segs):
@@ -325,7 +325,7 @@ class Editor():
                 bad_tokens_ids = [[x] for x in range(sentinel_start, end_token_id)] + [[eos_token_id]]
                 max_length = max(int(4/3 * max_length), 200)
                 #logger.info(wrap_text(f"max lenght:{max_length}\nmax new tokens: {max_length - len(masked_token_ids_tensor.squeeze())}"))
-                logger.info(wrap_text("Sub round: " + str(num_sub_rounds)))    
+                logger.info(wrap_text(f"Sub round: {num_sub_rounds}"))    
                 logger.info(wrap_text(f"Input: {inp_idx + 1} of {num_inputs}"))
                 logger.info(wrap_text(f"Last sentinel: {last_sentin}"))
                 logger.info(wrap_text("INPUT TO EDITOR: " + \
@@ -361,24 +361,23 @@ class Editor():
                 output = output.cpu()
                 del masked_token_ids_tensor 
                 torch.cuda.empty_cache()
-
                 batch_decoded = self.tokenizer.batch_decode(output)
                 num_gens_with_pad = 0
                 num_bad_gens = 0
                 temp_edited_editable_segs = []
-                logger.info(wrap_text("first batch: " + batch_decoded[0]))
+                logger.info(wrap_text(f"first batch: {batch_decoded[0]}"))
                 for batch_idx, batch in enumerate(batch_decoded):
                     sentinel_toks = [f"<extra_id_{idx}>" for idx in \
                             range(0, span_end + 1)]
                     bad_gen, first_bad_tok, temp, stripped_batch = \
                             self._process_gen(editable_seg, batch, sentinel_toks)
+
                     if len(sentinel_toks) > 3: 
                         assert sentinel_toks[-2] in editor_input
 
                     if "<pad>" in batch[4:]:
                         num_gens_with_pad += 1
                     if bad_gen:
-                        
                         num_bad_gens += 1
                         temp_span_end_offset = first_bad_tok - end_token_id + 1
 
@@ -521,7 +520,7 @@ class Editor():
                 masked_token_ids_tensor = torch.LongTensor(masked_token_ids).unsqueeze(0).to(self.device)
                 
                 max_length = max(int(4/3 * max_length), 200)
-                logger.info(wrap_text("Sub round: " + str(num_sub_rounds)))    
+                logger.info(wrap_text(f"Sub round: {num_sub_rounds}"))    
                 logger.info(wrap_text(f"Input: {inp_idx + 1} of {num_inputs}"))
                 logger.info(wrap_text("INPUT TO EDITOR: " + \
                         f"{self.tokenizer.decode(masked_token_ids)}"))
@@ -533,7 +532,7 @@ class Editor():
                 num_gens_with_pad = 0
                 num_bad_gens = 0
                 temp_edited_editable_segs = []
-                logger.info(wrap_text("first batch: " + batch_decoded[0]))
+                logger.info(wrap_text(f"first batch: {batch_decoded[0]}"))
                 for batch_idx, batch in enumerate(batch_decoded):
                     temp = batch
                     if "<pad>" in batch[4:]:
