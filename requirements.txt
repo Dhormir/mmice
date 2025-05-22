@@ -1,5 +1,6 @@
 accelerate
 datasets
+huggingface_hub
 munch
 nltk
 numpy
@@ -7,3 +8,4 @@ pandas
 sentencepiece
 tqdm
 transformers
+peft

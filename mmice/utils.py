@@ -1,7 +1,9 @@
 from transformers import T5ForConditionalGeneration, T5Config, \
     T5TokenizerFast, MT5ForConditionalGeneration, MT5Config, \
+    UMT5ForConditionalGeneration, UMT5Config, MyT5Tokenizer,\
     BertForMaskedLM, BertTokenizerFast, BertConfig
 from transformers import pipeline
+from peft import PeftModel, PeftConfig, TaskType
 from datasets import load_dataset
 from munch import Munch
 import numpy as np
@@ -17,7 +19,7 @@ import os
 from typing import List, Optional, Any
 
 # Local imports
-from .task_loader import load_chilean_hate
+from .task_loader import load_chilean_hate, load_42k_hcuch
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -34,7 +36,13 @@ AVAILABLE_MODELS = [
                     "google/mt5-large",
                     "google/mt5-xl",
                     "google/mt5-xxl",
+                    "google/umt5-small",
+                    "google/umt5-base",
+                    "google/umt5-xl",
+                    "google/umt5-xxl",
+                    "Tomlim/myt5-small",
                     "bert-base-uncased",
+                    "dccuchile/bert-base-spanish-wwm-uncased",
                     ]
 
 ####################################################################
@@ -49,12 +57,15 @@ def get_shared_parsers():
     meta_parser.add_argument("-task", required=True, 
             help='Name of task. Currently, only RACE, IMDB, \
                 Newsgroups and ChileanHate are supported.', 
-            choices=['race', 'imdb', 'newsgroups', 'chileanhate'])
+            choices=['race', 'imdb', 'newsgroups', 'chileanhate', '42k_hcuch'])
     meta_parser.add_argument("-results_dir", default="results", 
             help='Results dir. Where to store results.')
+    meta_parser.add_argument("-lang", default="en",
+            help='Task language. Indicates the language of the task.',
+            choices=['en', 'es'])
 
     mask_parser = argparse.ArgumentParser()
-    mask_parser.add_argument("-mask_type", default="random", 
+    mask_parser.add_argument("-mask_type", default="random",
             choices=["grad", "random"])
     mask_parser.add_argument("-grad_type", default="normal_l1", 
             choices=["integrated_l1", "integrated_signed", "normal_l1", \
@@ -64,21 +75,29 @@ def get_shared_parsers():
 
     model_parser = argparse.ArgumentParser()
     model_parser.add_argument("-model_name", default="t5-small", 
-            help='Name of editor model. Currently, T5 and MT5 are supported.')
+            help='Name of editor model. Currently, T5, MT5, UMT5 and BERT are supported.')
     model_parser.add_argument("-model_max_length", default=700, type=int,
-            help="Maximum number of tokens that Editor model can take")
+            help="Maximum number of tokens that Editor model can take.")
+    model_parser.add_argument("-lora", default=False, type=bool,
+            help="Whether to use Low Rank Adaptation for the editor model.")
     return {"meta": meta_parser, "mask": mask_parser, "model": model_parser}
 
 
 def get_stage_one_parsers():
     """ Helper function to get parsers for Stage 1. """
     train_parser = argparse.ArgumentParser()
-    train_parser.add_argument("-train_batch_size", default=4, type=int)
+    train_parser.add_argument("-train_batch_size", default=1, type=int)
     train_parser.add_argument("-val_batch_size", default=1, type=int)
-    train_parser.add_argument("-num_epochs", default=10, type=int)
-    train_parser.add_argument("-lr", default=5e-5, type=float)
+    train_parser.add_argument("-num_epochs", default=5, type=int)
+    train_parser.add_argument("-lr", default=1e-4, type=float)
     train_parser.add_argument("-seed", default=42, type=int)
     train_parser.add_argument("-data_split_ratio", default=0.75, type=float)
+    # LoRA Arguments
+    train_parser.add_argument("-r", default=8, type=int)
+    train_parser.add_argument("-lora_alpha", default=32, type=int)
+    train_parser.add_argument("-lora_dropout", default=.1, type=float)
+    train_parser.add_argument("-bias", default="none", type=str, choices=['none', 'all', 'lora_only'])
+    train_parser.add_argument("-task_type", default=TaskType.SEQ_2_SEQ_LM, type=TaskType)
 
     misc_parser = argparse.ArgumentParser()
     misc_parser.add_argument("-target_label", default="gold", 
@@ -189,7 +208,7 @@ def clean_text(example, special_chars=["\n", "\t", "\x85", "\x97", "#", "<br />"
     return example
 
 def get_dataset_reader(task_name, split='train'):
-    task_options = ["imdb", "race", "newsgroups", "chileanhate"]
+    task_options = ["imdb", "race", "newsgroups", "chileanhate", "42k_hcuch"]
     if task_name not in task_options:
         raise NotImplementedError(f"Task {task_name} not implemented; \
                 must be one of {task_options}")
@@ -198,17 +217,28 @@ def get_dataset_reader(task_name, split='train'):
     elif task_name == "race":
         return load_dataset("race")
     elif task_name == "newsgroups":
-        return load_dataset("newsgroup")
+        return load_dataset("SetFit/20_newsgroups", split=split).filter(lambda example:  example['label'] in set(range(16))).map(clean_text)
     # Example for new tasks
     elif task_name == "chileanhate":
         task_data_dir = os.path.join('data', task_name)
         data_files = [os.path.join(task_data_dir, "tweets_train.csv"),
                       os.path.join(task_data_dir, "tweets_test.csv")]
         return load_chilean_hate(data_files=data_files)[split].map(clean_text)
+    elif task_name == "42k_hcuch":
+        task_data_dir = os.path.join('data', task_name)
+        data_files = [os.path.join(task_data_dir, "labeled_data_3-label_train.csv"),
+                      os.path.join(task_data_dir, "labeled_data_3-label_test.csv"),
+                      os.path.join(task_data_dir, "labeled_data_3-label_validation.csv")]
+        return load_42k_hcuch(data_files=data_files)[split]#.map(clean_text)
 
+# Languages format
+LANGUAGES_FORMAT = {
+    "en": {"label": "label", "input": "input"},
+    "es": {"label": "etiqueta", "input": "entrada"},
+    }
 
-def format_classif_input(inp, label):
-    return "label: " + str(label) + ". input: " + str(inp)
+def format_classif_input(inp, label, lang):
+    return f"{LANGUAGES_FORMAT[lang]['label']}: " + str(label) + f". {LANGUAGES_FORMAT[lang]['input']}: " + str(inp)
 
 
 def format_multiple_choice_input(context, question, options, answer_idx):
@@ -228,8 +258,8 @@ def load_predictor(task, predictor_folder="trained_predictors/"):
     if not os.path.exists(predictor_path):
         raise ValueError(f"Cannot find predictor path {predictor_path}")
     logger.info(f"Loading Predictor from: {predictor_path}")
-
-    predictor = pipeline("sentiment-analysis",
+    task_name = "text-classification" if task == task_options[2] else "sentiment-analysis"
+    predictor = pipeline(task_name,
                          model=predictor_path,
                          device=get_device(),
                          padding=True,
@@ -242,40 +272,157 @@ def load_predictor(task, predictor_folder="trained_predictors/"):
 ########################### Model Utils ############################
 ####################################################################
 
+def get_token_char_span(encoding, tokenizer, token_index):
+    """
+    Approximates the character span (start, end) of a token at a given index in the encoded sequence.
 
-def load_base_editor(model_name, max_length=700, editor_path=None):
+    Args:
+        text (str): The original input text.
+        tokenizer: A non-fast tokenizer instance.
+        token_index (int): The index of the token in the encoded sequence.
+
+    Returns:
+        tuple: A tuple (start, end) representing the character span of the token in the original text.
+               Returns (None, None) if the span cannot be determined.
+    """
+    tokens = tokenizer.convert_ids_to_tokens(encoding["input_ids"])
+    text = tokenizer.decode(encoding["input_ids"], skip_special_tokens=True)
+
+    # Initialize variables
+    current_position = 0
+
+    for idx, token in enumerate(tokens):
+        # Skip special tokens
+        if token in tokenizer.all_special_tokens:
+            if idx == token_index:
+                return (None, None)
+            continue
+
+        # Remove '▁' prefix used in SentencePiece tokenization
+        clean_token = token.lstrip("▁")
+
+        # Find the token in the text starting from the current position
+        start = text.find(clean_token, current_position)
+        if start == -1:
+            if idx == token_index:
+                return (None, None)
+            continue
+        end = start + len(clean_token)
+        if idx == token_index:
+            return (start, end)
+        current_position = end
+
+    return (None, None)
+
+
+
+def load_base_editor(model_name, max_length=700, editor_path=None, lora=False):
     editor_model_path = editor_path if editor_path else model_name
     if model_name not in AVAILABLE_MODELS:
         raise NotImplementedError(f"Model {model_name} not implemented; \
                 must be one of {AVAILABLE_MODELS}")
-    if "mt5-" in model_name:
-        model_config = MT5Config.from_pretrained(model_name)
-        model = MT5ForConditionalGeneration.from_pretrained(editor_model_path,
+
+    if lora and editor_path:
+        logger.info("Loading LoRa Model")
+    else:
+        logger.info("Loading regular Model")
+    if "umt5-" in model_name:
+        # Load base model from the config
+        if lora and editor_path:
+            peft_config = PeftConfig.from_pretrained(editor_model_path)
+            base_model = UMT5ForConditionalGeneration.from_pretrained(peft_config.base_model_name_or_path,
+                                                                    torch_dtype=torch.bfloat16)
+            # Apply LoRA weights
+            model = PeftModel.from_pretrained(base_model, editor_model_path)
+            model.generation_config.max_new_tokens = None
+            tokenizer = T5TokenizerFast.from_pretrained(peft_config.base_model_name_or_path,
+                                                        model_max_length=max_length,
+                                                        truncation=True,
+                                                        padding=True)
+        else:  
+            model_config = UMT5Config.from_pretrained(model_name, force_download=True)
+            model_config.max_new_tokens = None
+            model = UMT5ForConditionalGeneration.from_pretrained(editor_model_path,
+                                                                torch_dtype=torch.bfloat16,
+                                                                config=model_config)
+            # umt5 config fix
+            model.max_new_tokens = None
+            # We use legacy false to prevent warning
+            # something was misplaced in version 4.36.2 because its throwing the warning anyway
+            tokenizer = T5TokenizerFast.from_pretrained(model_name,
+                                                        model_max_length=max_length,
+                                                        truncation=True,
+                                                        padding=True, force_download=True)
+        
+    elif "mt5-" in model_name:
+         # Load base model from the config
+        if lora and editor_path:
+            peft_config = PeftConfig.from_pretrained(editor_model_path)
+            base_model = MT5ForConditionalGeneration.from_pretrained(peft_config.base_model_name_or_path,
+                                                                    torch_dtype=torch.bfloat16)
+            # Apply LoRA weights
+            model = PeftModel.from_pretrained(base_model, editor_model_path)
+            tokenizer = T5TokenizerFast.from_pretrained("Dhurmir/patched-mt5-tokenizer",
+                                                        model_max_length=max_length,
+                                                        extra_ids=0,
+                                                        legacy=False,
+                                                        truncation=True,
+                                                        padding=True)
+        else:
+            model_config = MT5Config.from_pretrained(model_name, force_download=True)
+            model_config.max_new_tokens = None
+            model = MT5ForConditionalGeneration.from_pretrained(editor_model_path,
+                                                                torch_dtype=torch.bfloat16,
+                                                                config=model_config)
+            # We use legacy false to prevent warning
+            # something was misplaced in version 4.36.2 because its throwing the warning anyway
+            tokenizer = T5TokenizerFast.from_pretrained("Dhurmir/patched-mt5-tokenizer",
+                                                        # extra_ids=0 why? I dont know but it works!
+                                                        extra_ids=0,
+                                                        model_max_length=max_length,
+                                                        truncation=True,
+                                                        padding=True)
+    elif "myt5-" in model_name:
+        model_config = T5Config.from_pretrained(model_name, force_download=True)
+        model = T5ForConditionalGeneration.from_pretrained(editor_model_path,
+                                                            torch_dtype=torch.bfloat16,
                                                             config=model_config)
         # We use legacy false to prevent warning
         # something was misplaced in version 4.36.2 because its throwing the warning anyway
-        tokenizer = T5TokenizerFast.from_pretrained(model_name,
-                                                    legacy=False,
-                                                    model_max_length=max_length,
-                                                    truncation=True,
-                                                    padding=True)
+        tokenizer = MyT5Tokenizer.from_pretrained(model_name,
+                                                model_max_length=max_length,
+                                                truncation=True, from_slow=True,
+                                                padding=True, force_download=True)
     elif "t5-" in model_name:
-        model_config = T5Config.from_pretrained(model_name)
-        model = T5ForConditionalGeneration.from_pretrained(editor_model_path,
-                                                           config=model_config)
-        tokenizer = T5TokenizerFast.from_pretrained(model_name,
-                                                    legacy=False,
-                                                    model_max_length=max_length,
-                                                    truncation=True,
-                                                    padding=True)
+        # Load base model from the config
+        if lora and editor_path:
+            peft_config = PeftConfig.from_pretrained(editor_model_path)
+            base_model = T5ForConditionalGeneration.from_pretrained(peft_config.base_model_name_or_path,
+                                                                    torch_dtype=torch.bfloat16)
+            # Apply LoRA weights
+            model = PeftModel.from_pretrained(base_model, editor_model_path)
+            tokenizer = T5TokenizerFast.from_pretrained(peft_config.base_model_name_or_path,
+                                                        model_max_length=max_length,
+                                                        truncation=True,
+                                                        padding=True)
+        else:  
+            model_config = T5Config.from_pretrained(model_name, force_download=True)
+            model = T5ForConditionalGeneration.from_pretrained(editor_model_path,
+                                                               torch_dtype=torch.bfloat16,
+                                                               config=model_config)
+            tokenizer = T5TokenizerFast.from_pretrained(model_name,
+                                                        model_max_length=max_length,
+                                                        truncation=True,
+                                                        padding=True, force_download=True)
+
     elif "bert" in model_name:
-        model_config = BertConfig.from_pretrained(model_name)
+        model_config = BertConfig.from_pretrained(model_name, force_download=True)
         model = BertForMaskedLM.from_pretrained(editor_model_path,
                                                 config=model_config)
         tokenizer = BertTokenizerFast.from_pretrained(model_name,
                                                     model_max_length=max_length,
                                                     truncation=True,
-                                                    padding=True)
+                                                    padding=True, force_download=True)
     return tokenizer, model
 
 
@@ -314,6 +461,7 @@ def get_predictor_tokenized(predictor, sequence):
     """
     return predictor.tokenizer(sequence,
                                truncation=True,
+                               return_tensors="pt",
                                max_length=predictor.tokenizer.model_max_length)
 
 
