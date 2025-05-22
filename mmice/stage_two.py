@@ -1,7 +1,9 @@
+import sys
+import io
 import torch
 import os
 import csv
-from tqdm.autonotebook import tqdm
+from tqdm.auto import tqdm
 import re
 import numpy as np
 import time
@@ -14,12 +16,18 @@ from .edit_finder import EditFinder, EditEvaluator
 from .editor import Editor, RaceEditor
 from .maskers.gradient_masker import GradientMasker
 
-logger = logging.getLogger("my-logger")
-FORMAT = "[%(filename)s:%(lineno)s - %(funcName)20s() ] %(message)s"
-logging.basicConfig(level=os.environ.get("LOGLEVEL", "INFO"), format=FORMAT)
-logger.setLevel(logging.INFO)
+# Re-wrap stdout with UTF-8 encoding
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="[%(filename)s:%(lineno)s - %(funcName)20s() ] %(message)s",
+)
+logger = logging.getLogger(__name__)
+
 # Random Number Generator
 RNG = np.random.default_rng(seed=42)
+
 
 
 def get_grad_sign_direction(grad_type, grad_pred):
@@ -70,9 +78,9 @@ def load_models(args):
     editor_path = check_editor_path(args.meta.editor_path)
     editor_tokenizer, editor_model = load_base_editor(model_name=args.model.model_name,
                                                       max_length=args.model.model_max_length,
-                                                      editor_path=editor_path)
+                                                      editor_path=editor_path,
+                                                      lora=args.model.lora)
     device = get_device()
-    logger.info(f'Device: {device}')
     editor_model = editor_model.to(device)
     
     sign_direction = get_grad_sign_direction(args.mask.grad_type, args.misc.grad_pred) 
@@ -118,8 +126,8 @@ def edit_indices(out_file, inputs):
         logger.info("Previously saved file found")
         logger.info(f"Resuming work from: {out_file}")
         edits = pd.read_csv(out_file, sep="\t", lineterminator="\n",
-                            on_bad_lines="warn", encoding="utf-8")
-        previous_indices = edits['data_idx'].unique()
+                            on_bad_lines="warn", encoding="utf-8").dropna()
+        previous_indices = edits['data_idx'].unique().astype(np.int64)
         input_indices = np.array(list(set(input_indices) - set(previous_indices)))
     else:
         logger.info("No previously saved file found")
@@ -139,7 +147,7 @@ def run_edit_test(args):
     meta_log_file = os.path.join(stage_two_dir, "meta_log.txt")
     out_file = os.path.join(stage_two_dir, "edits.csv")
     # add output to log file
-    logger.addHandler(logging.FileHandler(meta_log_file))
+    logger.addHandler(logging.FileHandler(meta_log_file, encoding='utf-8'))
    
 
     logger.info(f"Task dir: {task_dir}")
@@ -158,7 +166,8 @@ def run_edit_test(args):
                              beam_width=args.search.beam_width, 
                              max_mask_frac=args.search.max_mask_frac,
                              search_method=args.search.search_method,
-                             max_search_levels=args.search.max_search_levels)
+                             max_search_levels=args.search.max_search_levels,
+                             )
     
     inputs = dr['text']
     if "race" not in args.meta.task:
@@ -166,6 +175,7 @@ def run_edit_test(args):
         inputs = [x for x in inputs if len(x) > 0 and re.search('[a-zA-Z]', x)]
 
     input_indices = edit_indices(out_file, inputs)
+    logger.info(f'inputs: {len(inputs)}, input_indices: {len(input_indices)}')
     # Find edits and write to file
     with open(out_file, "a", encoding="utf-8") as csv_file:
         fieldnames = ["data_idx", "sorted_idx", "orig_pred", "new_pred",
@@ -175,12 +185,14 @@ def run_edit_test(args):
                       "minimality", "num_edit_rounds", "mask_frac",
                       "duration", "error"]
         writer = csv.writer(csv_file, delimiter="\t")
-        writer.writerow(fieldnames)
+        if len(inputs) == len(input_indices):
+            writer.writerow(fieldnames)
         for _, i in tqdm(enumerate(input_indices), total=len(input_indices)):
             inp = inputs[i]
             logger.info(wrap_text(f"ORIGINAL INSTANCE ({i}): {inp}"))
             start_time = time.time()
             error = False
+            edited_list = None
             try:
                 edited_list = edit_finder.minimally_edit(inp,
                                                          max_edit_rounds=args.search.max_edit_rounds,
@@ -190,27 +202,30 @@ def run_edit_test(args):
                 sorted_list = edited_list.get_sorted_edits() 
 
             except Exception as e:
-                logger.error(f"ERROR: {e}")
+                logger.exception(f"ERROR: Finding edits:\n{e}")
                 error = True
                 sorted_list = []
 
             end_time = time.time()
             duration = end_time - start_time
+
             for s_idx, s in enumerate(sorted_list):
-                writer.writerow([i, s_idx, edited_list.orig_label, 
-                    s['edited_label'], edited_list.contrast_label, 
-                    edited_list.orig_contrast_prob, s['edited_contrast_prob'], 
-                    edited_list.orig_input, s['edited_input'], 
-                    edited_list.orig_editable_seg, 
-                    s['edited_editable_seg'], s['minimality'], 
-                    s['num_edit_rounds'], s['mask_frac'], duration, error])
-                csv_file.flush()
+                    writer.writerow([i, s_idx, edited_list.orig_label,
+                                     s['edited_label'], edited_list.contrast_label, 
+                                     edited_list.orig_contrast_prob, s['edited_contrast_prob'], 
+                                     edited_list.orig_input, s['edited_input'], 
+                                     edited_list.orig_editable_seg, 
+                                     s['edited_editable_seg'], s['minimality'], 
+                                     s['num_edit_rounds'], s['mask_frac'], duration, error])
+                    csv_file.flush()
+
             if sorted_list == []:
-                writer.writerow([i, 0, edited_list.orig_label, 
-                    None, edited_list.contrast_label, 
-                    edited_list.orig_contrast_prob, None, 
-                    edited_list.orig_input, None, 
-                    edited_list.orig_editable_seg, 
-                    None, None, None, None, duration, error]) 
+                writer.writerow([i, 0, edited_list.orig_label,
+                                 None, edited_list.contrast_label,
+                                 edited_list.orig_contrast_prob, None, 
+                                 edited_list.orig_input, None,
+                                 edited_list.orig_editable_seg,
+                                 None, None, None, None, duration, error])
                 csv_file.flush()
     csv_file.close()
+    logger.info("Successful Execution!!")

@@ -2,17 +2,16 @@ import torch
 import numpy as np
 import re
 import os
-import sys
 import more_itertools as mit
 import math
 import logging
+from tqdm.auto import tqdm
+import sys
 
 # Local imports
 from .utils import get_device, get_predictor_tokenized, wrap_text
 
-logger = logging.getLogger("my-logger")
-FORMAT = "[%(filename)s:%(lineno)s - %(funcName)20s() ] %(message)s"
-logging.basicConfig(level=os.environ.get("LOGLEVEL", "INFO"), format=FORMAT)
+logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 class Editor():
@@ -66,19 +65,16 @@ class Editor():
 
     # Why manually truncate when its already available in transformers ???
     def truncate_editable_segs(self, editable_segs, **kwargs):
-        """ Truncate editable segments to max length of Predictor. """ 
+        """ Truncate editable segments to max length of Predictor. """
         trunc_es = [None] * len(editable_segs)
         for s_idx, s in enumerate(editable_segs):
             assert(len(s) > 0)
             predic_tokenized = get_predictor_tokenized(self.predictor, s)
-            
             max_predic_tokens = self.predictor.tokenizer.model_max_length
-            if len(predic_tokenized) >= max_predic_tokens: 
-                for idx, token in enumerate(reversed(predic_tokenized)):
-                    if token.idx_end is not None:
-                        last_idx = token.idx_end
-                        break
-                trunc_es[s_idx] = s[0:last_idx]
+            if len(predic_tokenized["input_ids"][0]) >= max_predic_tokens: 
+                trunc_es[s_idx] = self.predictor.tokenizer.decode(
+                    predic_tokenized["input_ids"][0],
+                    skip_special_tokens=True)
             else:
                 trunc_es[s_idx] = s
         return trunc_es
@@ -99,9 +95,15 @@ class Editor():
         """ Get token indices to mask, sorted by gradient value """
         # this first call quite literally does nothing!!!
         editable_seg = inp
-        editor_tokenized = self.tokenizer(editable_seg)
+        editor_tokenized = self.tokenizer(
+            editable_seg,
+            truncation=True, 
+            max_length=self.max_length,
+            return_tensors="pt"
+        )
+        editable_seg = self.tokenizer.decode(editor_tokenized["input_ids"][0][:-1])
         sorted_token_indices = self.masker.get_important_editor_tokens(editable_seg, grad_pred_idx, editor_tokenized,
-                                                                       num_return_toks=len(editor_tokenized.input_ids))
+                                                                       num_return_toks=len(editor_tokenized.input_ids[0]))
         return sorted_token_indices 
 
     def get_candidates(self, targ_pred_label, inp, targ_pred_idx, orig_pred_idx,
@@ -123,10 +125,22 @@ class Editor():
                 self._prepare_input_for_editor(inp, grad_pred_idx,
                                                sorted_token_indices=sorted_token_indices)
 
-        edited_editable_segs = self._sample_edits(targ_pred_label, masked_inp, targ_pred_idx,
-                                                  num_spans=num_spans,
-                                                  orig_spans=orig_spans,
-                                                  max_length=max_length)
+        if "t5" in self.tokenizer.name_or_path:
+            edited_editable_segs = self._sample_edits(targ_pred_label, masked_inp, targ_pred_idx,
+                                                    num_spans=num_spans,
+                                                    orig_spans=orig_spans,
+                                                    max_length=max_length)
+        elif "bert" in self.tokenizer.name_or_path:
+            edited_editable_segs = self._sample_edits_bert(targ_pred_label, masked_inp, targ_pred_idx,
+                                                           num_spans=num_spans,
+                                                           orig_spans=orig_spans,
+                                                           max_length=max_length)
+        else:
+            raise NotImplementedError(f"Model {self.editor_tok_wrapper.name_or_path} not implemented; \
+                must be bert or t5 style")
+            
+        assert len(edited_editable_segs) > 0, "Generated zero edited_editable_segs"
+
         edited_cands = [None] * len(edited_editable_segs)
         for idx, es in enumerate(edited_editable_segs):
             cand = {}
@@ -160,7 +174,6 @@ class Editor():
 
     def _process_gen(self, masked_inp, gen, sentinel_toks):
         """ Helper function that processes decoded gen """
-
         bad_gen = False
         first_bad_tok = None
 
@@ -242,6 +255,7 @@ class Editor():
 
         return bad_gen, first_bad_tok, temp, gen 
 
+
     def _get_pred_with_replacement(self, temp_gen, orig_spans):
         """ Replaces sentinel tokens in gen with orig text and returns pred. 
         Used for intermediate bad generations. """
@@ -310,7 +324,8 @@ class Editor():
                 masked_token_ids_tensor = torch.LongTensor(masked_token_ids + [eos_token_id]).unsqueeze(0).to(self.device)
                 bad_tokens_ids = [[x] for x in range(sentinel_start, end_token_id)] + [[eos_token_id]]
                 max_length = max(int(4/3 * max_length), 200)
-                logger.info(wrap_text("Sub round: " + str(num_sub_rounds)))    
+                #logger.info(wrap_text(f"max lenght:{max_length}\nmax new tokens: {max_length - len(masked_token_ids_tensor.squeeze())}"))
+                logger.info(wrap_text(f"Sub round: {num_sub_rounds}"))    
                 logger.info(wrap_text(f"Input: {inp_idx + 1} of {num_inputs}"))
                 logger.info(wrap_text(f"Last sentinel: {last_sentin}"))
                 logger.info(wrap_text("INPUT TO EDITOR: " + \
@@ -327,7 +342,8 @@ class Editor():
                             early_stopping=True if num_beams > 1 else False,
                             length_penalty=self.length_penalty, 
                             bad_words_ids=bad_tokens_ids, 
-                            max_length=max_length) 
+                            max_length=max_length
+                            ) 
 
                     elif self.generate_type == "sample":
                         output = self.editor_model.generate(
@@ -340,28 +356,28 @@ class Editor():
                             eos_token_id=end_token_id,
                             length_penalty=self.length_penalty,
                             bad_words_ids=bad_tokens_ids, 
-                            max_length=max_length) 
+                            max_length=max_length,
+                            ) 
                 output = output.cpu()
                 del masked_token_ids_tensor 
                 torch.cuda.empty_cache()
-
                 batch_decoded = self.tokenizer.batch_decode(output)
                 num_gens_with_pad = 0
                 num_bad_gens = 0
                 temp_edited_editable_segs = []
-                logger.info(wrap_text("first batch: " + batch_decoded[0]))
+                logger.info(wrap_text(f"first batch: {batch_decoded[0]}"))
                 for batch_idx, batch in enumerate(batch_decoded):
                     sentinel_toks = [f"<extra_id_{idx}>" for idx in \
                             range(0, span_end + 1)]
                     bad_gen, first_bad_tok, temp, stripped_batch = \
                             self._process_gen(editable_seg, batch, sentinel_toks)
+
                     if len(sentinel_toks) > 3: 
                         assert sentinel_toks[-2] in editor_input
 
                     if "<pad>" in batch[4:]:
                         num_gens_with_pad += 1
                     if bad_gen:
-                        
                         num_bad_gens += 1
                         temp_span_end_offset = first_bad_tok - end_token_id + 1
 
@@ -402,11 +418,10 @@ class Editor():
                         new_orig_spans_lst.append(new_orig_spans)
 
                     else:
+                        # All generations must be editable in order to be useful
                         temp_edited_editable_segs.append(temp)
-                        assert "<extra_id" not in temp
-                    
+                        #assert "<extra_id" not in temp, "We didnt generate editable segments"
                     assert "</s>" not in temp
-
                 edited_editable_segs.extend(temp_edited_editable_segs)
             if new_editor_inputs == []:
                 break
@@ -428,6 +443,133 @@ class Editor():
                 if predicted_label == contrast_label: 
                     edited_editable_segs.append(temp)
 
+            highest_indices = np.argsort(targ_probs)[-k_intermediate:]
+            filt_indices = [idx for idx in highest_indices \
+                    if targ_probs[idx] != -1]
+            editor_inputs = [new_editor_inputs[idx] for idx in filt_indices]
+            editable_segs = [new_editable_segs[idx] for idx in filt_indices]
+            span_end_offsets = [new_span_end_offsets[idx] for idx in filt_indices] 
+            orig_token_ids_lst = [new_orig_token_ids_lst[idx] for idx in filt_indices] 
+            orig_spans_lst = [new_orig_spans_lst[idx] for idx in filt_indices] 
+            masked_token_ids_lst = [new_masked_token_ids_lst[idx] for idx in filt_indices] 
+
+            sys.stdout.flush()
+            num_sub_rounds += 1
+
+        for idx, es in enumerate(edited_editable_segs):
+            assert es.find("</s>") in [len(es)-4, -1]
+            edited_editable_segs[idx] = es.replace("</s>", " ")
+            matches = re.findall(r"<extra_id_([0-9]|[1-9][0-9])>", es)
+            # logger.info(f"matches:\n{matches}")     
+            # logger.info(f"len(matches): {len(matches)}")
+            # logger.info(f"len(matches) > 1: {len(matches) > 1}")
+            if len(matches) == 1:
+                edited_editable_segs[idx] = re.sub(r"<extra_id_([0-9]|[1-9][0-9])>", '', es)
+            assert len(matches) <= 1, \
+                    f"Extra id token should not be in edited inp: {es}"
+            assert "</s>" not in es, \
+                    f"</s> should not be in edited inp: {edited_editable_segs[idx][0]}"
+
+
+        return set(edited_editable_segs)
+
+
+    def _sample_edits_bert(self, targ_pred_label, masked_editable_seg, targ_pred_idx,
+                           num_spans=None, orig_spans=None, max_length=None):
+        """ Returns self.num_gens copies of masked_editable_seg with infills.
+        Called by get_candidates(). """
+        
+        self.editor_model.eval()       
+
+        editor_input = self.get_editor_input(targ_pred_label, masked_editable_seg)
+        
+        editor_inputs = [editor_input]
+        editable_segs = [masked_editable_seg]
+        span_end_offsets = [num_spans]
+        orig_token_ids_lst = [self.tokenizer.encode(orig_spans)[1:-1]]
+        orig_spans_lst = [orig_spans]
+        masked_token_ids_lst = [self.tokenizer.encode(editor_input)[1:-1]]
+        k_intermediate = 3 
+
+        mask_token = self.tokenizer.encode("[MASK]")
+        logger.info(f'mask token: {mask_token}')
+
+        num_sub_rounds = 0
+        edited_editable_segs = [] # list of tuples with meta information
+
+        max_sub_rounds = 3
+        while editable_segs != []:
+            # Break if past max sub rounds 
+            if num_sub_rounds > max_sub_rounds:
+                break
+            
+            new_editor_inputs = []
+            new_editable_segs = []
+            new_span_end_offsets = []
+            new_orig_token_ids_lst = []
+            new_orig_spans_lst = []
+            new_masked_token_ids_lst = []
+
+            iterator = enumerate(zip(
+                editor_inputs, editable_segs, masked_token_ids_lst, 
+                span_end_offsets, orig_token_ids_lst, orig_spans_lst))
+            for inp_idx, (editor_input, editable_seg, masked_token_ids, \
+                    span_end, orig_token_ids, orig_spans) in iterator: 
+
+                num_inputs = len(editor_inputs)
+                num_return_seqs = int(math.ceil(self.num_gens/num_inputs)) \
+                        if num_sub_rounds != 0 else self.num_gens
+                num_beams = self.num_beams if num_sub_rounds == 0 \
+                        else num_return_seqs
+                
+                masked_token_ids_tensor = torch.LongTensor(masked_token_ids).unsqueeze(0).to(self.device)
+                
+                max_length = max(int(4/3 * max_length), 200)
+                logger.info(wrap_text(f"Sub round: {num_sub_rounds}"))    
+                logger.info(wrap_text(f"Input: {inp_idx + 1} of {num_inputs}"))
+                logger.info(wrap_text("INPUT TO EDITOR: " + \
+                        f"{self.tokenizer.decode(masked_token_ids)}"))
+
+                batch_decoded = get_beam_prediction(sent=editable_seg, tokenizer=self.tokenizer,
+                                                    model=self.editor_model, device=self.device,
+                                                    k=num_return_seqs, fill_order='right')
+
+                num_gens_with_pad = 0
+                num_bad_gens = 0
+                temp_edited_editable_segs = []
+                logger.info(wrap_text(f"first batch: {batch_decoded[0]}"))
+                for batch_idx, batch in enumerate(batch_decoded):
+                    temp = batch
+                    if "<pad>" in batch[4:]:
+                        num_gens_with_pad += 1
+
+                    temp_edited_editable_segs.append(temp)
+                    assert "<extra_id" not in temp
+                    
+                    assert "</s>" not in temp
+
+                edited_editable_segs.extend(temp_edited_editable_segs)
+            if new_editor_inputs == []:
+                break
+
+            _, unique_batch_indices = np.unique(new_editor_inputs, return_index=True)
+
+            targ_probs = [-1] * len(edited_editable_segs)
+            for idx in enumerate(edited_editable_segs):
+                ot = new_orig_spans_lst[idx].replace("<pad>", "")
+                temp = edited_editable_segs[idx]
+                edit_preds = self.predictor(temp)[0]
+                # predictions are always sorted by score from higher to lower
+                edit_probs = [edit_pred['score'] for edit_pred in edit_preds]
+                edit_labels = [edit_pred['label'] for edit_pred in edit_preds]
+                targ_pred_idx = targ_pred_idx if edit_labels[targ_pred_idx] == targ_pred_label else edit_labels.index(targ_pred_label)
+                #preds = add_probs(preds)
+                targ_probs[idx] = edit_probs[targ_pred_idx]
+                predicted_label = edit_preds[0]["label"]
+                contrast_label = edit_labels[targ_pred_idx]
+                if predicted_label == contrast_label: 
+                    edited_editable_segs.append(temp)
+            
             highest_indices = np.argsort(targ_probs)[-k_intermediate:]
             filt_indices = [idx for idx in highest_indices \
                     if targ_probs[idx] != -1]
@@ -646,3 +788,73 @@ class RaceEditor(Editor):
 
         masked_inp = masked_inp.replace(self.tokenizer.eos_token, " ")
         return num_spans, token_ind_to_mask, masked_inp, orig_spans, max_length
+
+
+# Beam search version
+def get_beam_prediction(sent, tokenizer, model, k=2):
+    token_ids = tokenizer.encode(sent, return_tensors='pt')
+    masked_position = (token_ids.squeeze() == tokenizer.mask_token_id).nonzero()
+    masked_pos = [mask.item() for mask in masked_position]
+
+    with torch.no_grad():
+        output = model(token_ids)
+
+    last_hidden_state = output[0].squeeze()
+    curr_beam = []
+
+    for index, mask_index in tqdm(enumerate(masked_pos), total=len(masked_pos)):
+        mask_hidden_state = last_hidden_state[mask_index]
+        rankings, idx = torch.topk(mask_hidden_state, k=k, dim=0, sorted=True)
+
+        if len(curr_beam) == 0:
+          curr_beam = list(zip(rankings, fill_mask_sentence(mask_index, idx, token_ids.squeeze())))
+        else:
+          prev_beam = curr_beam.copy()
+          topk_list = list(zip(rankings, idx))
+          while len(topk_list) != 0:
+            value = topk_list.pop()
+            for index, cand in enumerate(curr_beam):
+              if cand == prev_beam[index] and cand[0] + value[0] > cand[0]:
+                curr_beam[index] = (cand[0] + value[0], fill_mask_sentence(mask_index, value[1], cand[1]))
+              elif cand != prev_beam[index] and prev_beam[index][0] + value[0] > curr_beam[index][0]:
+                curr_beam[index] = (prev_beam[index][0] + value[0], fill_mask_sentence(mask_index, value[1], prev_beam[index][1]))
+
+    # guesses sorted in descending probability order
+    for cand in curr_beam:
+      print(f'cand: {tokenizer.decode(cand[1])}')
+
+    return curr_beam
+
+def fill_mask_sentence(mask_index, fill_token_ids, token_ids):
+  filled_sentences = []
+  if fill_token_ids.numel() < 2:
+    token_ids.squeeze()[mask_index] = fill_token_ids
+    return token_ids.clone()
+  for idx in fill_token_ids:
+    token_ids.squeeze()[mask_index] = idx
+    filled_sentences.append(token_ids.clone())
+  token_ids.squeeze()[mask_index] = 0
+  return filled_sentences
+
+# We pass the masked sentence several times until we fill it
+def get_prediction_II(sent, tokenizer, model, device, k=2, fill_order='left'):
+    order = {'left': 1, 'right': -1}
+    token_ids = tokenizer.encode(sent,
+                                 truncation=True,
+                                 return_tensors='pt').to(device)
+    masked_position = (token_ids.squeeze() == tokenizer.mask_token_id).nonzero()
+    masked_pos = [mask.item() for mask in masked_position][::order[fill_order]]
+    list_of_ids = [token_ids]
+    for index, mask_index in enumerate(masked_pos):
+      list_of_guesses = []
+      for ids in list_of_ids:
+        with torch.no_grad():
+          output = model(ids)
+        last_hidden_state = output[0].squeeze()
+        mask_hidden_state = last_hidden_state[mask_index]
+        idx = torch.topk(mask_hidden_state, k=k, dim=0)[1]
+        list_of_guesses += fill_mask_sentence(mask_index, idx, ids)
+      list_of_ids = list_of_guesses[:k]
+
+    torch.cuda.empty_cache()
+    return [tokenizer.decode(guess.squeeze()).replace('[CLS]', '').replace('[SEP]', '') for guess in list_of_ids]

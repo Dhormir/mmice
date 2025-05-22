@@ -9,8 +9,8 @@ from mmice.utils import get_args, get_dataset_reader, get_device
 if __name__ == '__main__':
 
     args = get_args("stage1")
-    predictor = pipeline("sentiment-analysis",
-                         "distilbert-base-uncased-finetuned-sst-2-english",
+    predictor = pipeline("text-classification",
+                         model="trained_predictors/imdb/models",
                          device=get_device(),
                          max_length=512,
                          padding=True,

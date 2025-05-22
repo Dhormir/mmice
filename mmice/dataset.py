@@ -1,6 +1,6 @@
 import torch
 from torch.utils.data import Dataset
-from tqdm.autonotebook import tqdm
+from tqdm.auto import tqdm
 import numpy as np
 import logging
 
@@ -20,11 +20,12 @@ class StageOneDataset(Dataset):
     from task training inputs. Inherits from torch.utils.data.Dataset. """
 
 
-    def __init__(self, tokenizer, max_length=512, masked_strings=None, targets=None):
+    def __init__(self, tokenizer, max_length=512, masked_strings=None, targets=None, lang='en'):
         self.tokenizer = tokenizer
         self.masked_strings = masked_strings
         self.targets = targets
         self.max_length = max_length
+        self.lang = lang
 
 
     def __len__(self):
@@ -83,18 +84,22 @@ class StageOneDataset(Dataset):
             label_to_use = predictor(orig_inp)[0]['label'] if target_label == "pred" else orig_label
             # If its not in mapping we assume it's because it is already encoded and therefore we do nothing
             label_idx = labels_to_ints[label_to_use] if label_to_use in labels_to_ints.keys() else label_to_use
+            # If these throws error something is really wrong with the dataset
+            label_to_use = label_to_use if label_to_use in labels_to_ints.keys() else predictor.model.config.id2label[label_to_use]
             predictor_tokenized = get_predictor_tokenized(predictor, orig_inp)
-            predictor_tok_end_idx = len(predictor_tokenized.input_ids)
+            predictor_tok_end_idx = predictor_tokenized.input_ids.size(dim=1)
             try:
                 # Q: why make the masker return more that what will be used?
                 # A: Maybe it's for stage two...
                 _, _, masked_input, target = masker.get_masked_string(orig_inp,
                                                                       pred_idx=label_idx,
                                                                       predictor_tok_end_idx=predictor_tok_end_idx)
-                masked_string = format_classif_input(masked_input, label_to_use) 
+                masked_string = format_classif_input(masked_input,
+                                                     label_to_use,
+                                                     self.lang) 
                 masked_strings.append(masked_string)
                 targets.append(target)
-                
+
                 verbose = True if i % 500 == 0 else False
                 if verbose:
                     rounded_mask_frac = round(masker.mask_frac, 3)

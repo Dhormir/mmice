@@ -1,8 +1,9 @@
 from accelerate import Accelerator
 from torch.utils.data import DataLoader
+from peft import get_peft_model, LoraConfig, TaskType
 import torch
 
-from tqdm.autonotebook import tqdm
+from tqdm.auto import tqdm
 import pandas as pd
 import numpy as np
 import os
@@ -46,15 +47,15 @@ def train_epoch(epoch, editor_tokenizer, editor_model, train_data_loader, optimi
                         disable=not ACCELERATOR.is_local_main_process,)
     progress_bar.set_description('Training loop progress')
 
-    for batch in train_data_loader:
+    for i, batch in enumerate(train_data_loader, 1):
         # We might want to check this?
         lm_labels = batch['target_ids']
-        lm_labels[lm_labels[:, :] == editor_tokenizer.pad_token_id] = -100
+        lm_labels[lm_labels == editor_tokenizer.pad_token_id] = -100
         ids = batch['source_ids']
-        outputs = editor_model(input_ids=ids, labels=lm_labels)
+        # outputs = editor_model(input_ids=ids, labels=lm_labels, attention_mask=batch['source_mask'])
+        outputs = editor_model(input_ids=ids, labels=lm_labels, )
         loss = outputs.loss
         total_loss += loss.item()
-
         ACCELERATOR.backward(loss)
         # Gradient acummulation?
         optimizer.step()
@@ -62,7 +63,7 @@ def train_epoch(epoch, editor_tokenizer, editor_model, train_data_loader, optimi
         del lm_labels
         del ids
         progress_bar.update()
-        progress_bar.set_postfix_str(f"Batch Loss: {loss.item():.4f}")
+        progress_bar.set_postfix_str(f"Loss: {total_loss/i:.4f}")
     progress_bar.close()
     avg_loss = total_loss/len(train_data_loader)
     logger.info(f'Epoch: {epoch},' +
@@ -90,23 +91,23 @@ def validate_epoch(epoch, editor_tokenizer, editor_model, val_data_loader):
     progress_bar = tqdm(val_data_loader,
                         total=len(val_data_loader),
                         desc='Validation loop progress',)
-    for batch in val_data_loader:
+    for i, batch in enumerate(val_data_loader, 1):
         lm_labels = batch['target_ids']
-        lm_labels[lm_labels[:, :] == editor_tokenizer.pad_token_id] = -100
+        lm_labels[lm_labels == editor_tokenizer.pad_token_id] = -100
         ids = batch['source_ids']
-
-        outputs = editor_model(input_ids=ids, labels=lm_labels)
+        # outputs = editor_model(input_ids=ids, labels=lm_labels, attention_mask=batch['source_mask'])
+        outputs = editor_model(input_ids=ids, labels=lm_labels, )
         loss = outputs.loss
         total_loss += loss.item()
 
         del lm_labels
         del ids
         progress_bar.update()
-        progress_bar.set_postfix_str(f"Batch Loss: {loss.item():.4f}")
+        progress_bar.set_postfix_str(f"Loss: {total_loss/i:.4f}")
     progress_bar.close()
     avg_loss = total_loss/len(val_data_loader)
     logger.info(f'Epoch: {epoch},' +
-                f' Avg Vatidation Batch Loss:  {avg_loss}')
+                f' Avg Validation Batch Loss:  {avg_loss}')
     return avg_loss
 
 
@@ -143,16 +144,17 @@ def get_datasets(predictor, dataset_reader, masker, data_dir, train_inputs, val_
 
         train_csv = pd.read_csv(train_data_path, sep="\t")
         val_csv = pd.read_csv(val_data_path, sep="\t")
-        print(train_csv.columns)
 
         train_dataset = StageOneDataset(editor_tokenizer,
                                         max_length=args.model.model_max_length,
                                         masked_strings=train_csv['inputs'],
-                                        targets=train_csv['targets'])
+                                        targets=train_csv['targets'],
+                                        lang=args.meta.lang)
         val_dataset = StageOneDataset(editor_tokenizer,
                                       max_length=args.model.model_max_length,
                                       masked_strings=val_csv['inputs'],
-                                      targets=val_csv['targets'])
+                                      targets=val_csv['targets'],
+                                      lang=args.meta.lang)
 
     # Else, create data by calling create_inputs() function in dataset.py
     else:
@@ -161,14 +163,18 @@ def get_datasets(predictor, dataset_reader, masker, data_dir, train_inputs, val_
                     f"{args.misc.target_label}")
         # For RACE, pass dataset_reader to create_inputs() to correctly truncate
         if args.meta.task == "race":
-            train_dataset = RaceStageOneDataset(editor_tokenizer, max_length=args.model.model_max_length)
+            train_dataset = RaceStageOneDataset(editor_tokenizer, max_length=args.model.model_max_length,
+                                                lang=args.meta.lang)
             train_dataset.create_inputs(dataset_reader, train_inputs, train_labels,
                                         predictor, masker, target_label=args.misc.target_label)
-            val_dataset = RaceStageOneDataset(editor_tokenizer, max_length=args.model.model_max_length)
+            val_dataset = RaceStageOneDataset(editor_tokenizer, max_length=args.model.model_max_length,
+                                              lang=args.meta.lang)
             val_dataset.create_inputs(dataset_reader, val_inputs, val_labels, predictor, masker, target_label=args.misc.target_label)
         else:
-            train_dataset = StageOneDataset(editor_tokenizer, max_length=args.model.model_max_length)
-            val_dataset = StageOneDataset(editor_tokenizer, max_length=args.model.model_max_length)
+            train_dataset = StageOneDataset(editor_tokenizer, max_length=args.model.model_max_length,
+                                            lang=args.meta.lang)
+            val_dataset = StageOneDataset(editor_tokenizer, max_length=args.model.model_max_length,
+                                          lang=args.meta.lang)
             train_dataset.create_inputs(train_inputs, train_labels, predictor,
                                         masker, target_label=args.misc.target_label)
             val_dataset.create_inputs(val_inputs, val_labels, predictor,
@@ -232,11 +238,13 @@ def get_task_data(args, dataset_reader):
         train_labels (_type_): _description_
         val_labels (_type_): _description_
     """
-    if args.meta.task in ["imdb", "chileanhate"]:
+    if args.meta.task in ["imdb", "newsgroups", "chileanhate", "42k_hcuch"]:
         train_data, val_data = dataset_reader.train_test_split(train_size=args.train.data_split_ratio).values()
         train_inputs, train_labels = train_data["text"], train_data["label"]
         val_inputs, val_labels = val_data["text"], val_data["label"]
-    
+    else:
+        logger.error("Unsupported dataset")
+        raise Exception("Unsupported Task dataset")
     logger.info(f"Num train for Editor fine-tuning: {len(train_inputs)}")
     logger.info(f"Num val for Editor fine-tuning: {len(val_inputs)}")
 
@@ -259,6 +267,19 @@ def run_train_editor(predictor, dataset_reader, args):
 
     editor_tokenizer, editor_model = load_base_editor(model_name=args.model.model_name,
                                                       max_length=args.model.model_max_length)
+    if args.model.lora:
+        # Define LoRA configuration
+        lora_config = LoraConfig(
+            r=args.train.r,
+            lora_alpha=args.train.lora_alpha,
+            target_modules=["q", "v"],  # LoRA on attention query & value matrices
+            lora_dropout=args.train.lora_dropout,
+            bias=args.train.bias,
+            task_type=args.train.task_type  # Important for T5
+        )
+        # Wrap model with LoRA
+        editor_model = get_peft_model(editor_model, lora_config)
+
     # We use the accelerator to prepare the model
     editor_model = ACCELERATOR.prepare(editor_model)
 
@@ -277,7 +298,12 @@ def run_train_editor(predictor, dataset_reader, args):
     for dir in [task_dir, data_dir, stage_one_dir, checkpoint_dir]:
         if not os.path.exists(dir):
             os.makedirs(dir)
-    
+
+    # setting log file    
+    meta_log_file = os.path.join(stage_one_dir, "meta_log.txt")
+    # add output to log file
+    logger.addHandler(logging.FileHandler(meta_log_file))
+        
     # Save args
     args_path = os.path.join(stage_one_dir, "stage_one_args.json")
     write_args(args_path, args)
@@ -341,3 +367,6 @@ def run_train_editor(predictor, dataset_reader, args):
                 ACCELERATOR.save_state(best_path, safe_serialization=False)
             progress_bar.set_postfix_str(f"Avg Train Loss: {avg_train_loss:.4f}, Best Validation Loss: {best_val_loss:.4f}")
     progress_bar.close()
+    logger.info(f"Saving pretrained to: {best_path}")
+    ACCELERATOR.load_state(best_path)
+    editor_model.save_pretrained(best_path)
