@@ -1,5 +1,5 @@
 from transformers import T5ForConditionalGeneration, T5Config, \
-    T5TokenizerFast, MT5TokenizerFast, MT5ForConditionalGeneration, MT5Config, \
+    T5TokenizerFast, MT5ForConditionalGeneration, MT5Config, \
     UMT5ForConditionalGeneration, UMT5Config, MyT5Tokenizer,\
     BertForMaskedLM, BertTokenizerFast, BertConfig
 from transformers import pipeline
@@ -355,19 +355,33 @@ def load_base_editor(model_name, max_length=700, editor_path=None, lora=False):
                                                         padding=True, force_download=True)
         
     elif "mt5-" in model_name:
-        model_config = MT5Config.from_pretrained(model_name, force_download=True)
-        model_config.max_new_tokens = None
-        model = MT5ForConditionalGeneration.from_pretrained(editor_model_path,
-                                                            torch_dtype=torch.bfloat16,
-                                                            config=model_config)
-        # We use legacy false to prevent warning
-        # something was misplaced in version 4.36.2 because its throwing the warning anyway
-        tokenizer = MT5TokenizerFast.from_pretrained("Dhurmir/patched-mt5-tokenizer",
-                                                     # extra_ids=0 why? I dont know but it works!
-                                                     extra_ids=0,
-                                                     model_max_length=max_length,
-                                                     truncation=True,
-                                                     padding=True)
+         # Load base model from the config
+        if lora and editor_path:
+            peft_config = PeftConfig.from_pretrained(editor_model_path)
+            base_model = MT5ForConditionalGeneration.from_pretrained(peft_config.base_model_name_or_path,
+                                                                    torch_dtype=torch.bfloat16)
+            # Apply LoRA weights
+            model = PeftModel.from_pretrained(base_model, editor_model_path)
+            tokenizer = T5TokenizerFast.from_pretrained("Dhurmir/patched-mt5-tokenizer",
+                                                        model_max_length=max_length,
+                                                        extra_ids=0,
+                                                        legacy=False,
+                                                        truncation=True,
+                                                        padding=True)
+        else:
+            model_config = MT5Config.from_pretrained(model_name, force_download=True)
+            model_config.max_new_tokens = None
+            model = MT5ForConditionalGeneration.from_pretrained(editor_model_path,
+                                                                torch_dtype=torch.bfloat16,
+                                                                config=model_config)
+            # We use legacy false to prevent warning
+            # something was misplaced in version 4.36.2 because its throwing the warning anyway
+            tokenizer = T5TokenizerFast.from_pretrained("Dhurmir/patched-mt5-tokenizer",
+                                                        # extra_ids=0 why? I dont know but it works!
+                                                        extra_ids=0,
+                                                        model_max_length=max_length,
+                                                        truncation=True,
+                                                        padding=True)
     elif "myt5-" in model_name:
         model_config = T5Config.from_pretrained(model_name, force_download=True)
         model = T5ForConditionalGeneration.from_pretrained(editor_model_path,
