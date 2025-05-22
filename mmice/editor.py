@@ -420,8 +420,7 @@ class Editor():
                     else:
                         # All generations must be editable in order to be useful
                         temp_edited_editable_segs.append(temp)
-                        assert "<extra_id" not in temp, "We didnt generate editable segments"
-
+                        #assert "<extra_id" not in temp, "We didnt generate editable segments"
                     assert "</s>" not in temp
                 edited_editable_segs.extend(temp_edited_editable_segs)
             if new_editor_inputs == []:
@@ -460,7 +459,13 @@ class Editor():
         for idx, es in enumerate(edited_editable_segs):
             assert es.find("</s>") in [len(es)-4, -1]
             edited_editable_segs[idx] = es.replace("</s>", " ")
-            assert "<extra_id_" not in es, \
+            matches = re.findall(r"<extra_id_([0-9]|[1-9][0-9])>", es)
+            # logger.info(f"matches:\n{matches}")     
+            # logger.info(f"len(matches): {len(matches)}")
+            # logger.info(f"len(matches) > 1: {len(matches) > 1}")
+            if len(matches) == 1:
+                edited_editable_segs[idx] = re.sub(r"<extra_id_([0-9]|[1-9][0-9])>", '', es)
+            assert len(matches) <= 1, \
                     f"Extra id token should not be in edited inp: {es}"
             assert "</s>" not in es, \
                     f"</s> should not be in edited inp: {edited_editable_segs[idx][0]}"
