@@ -169,6 +169,7 @@ def run_edit_test(args):
                              max_mask_frac=args.search.max_mask_frac,
                              search_method=args.search.search_method,
                              max_search_levels=args.search.max_search_levels,
+                             min_metric=args.search.min_metric,
                              )
     
     inputs = dr['text']
