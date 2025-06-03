@@ -131,6 +131,9 @@ def get_stage_two_parsers():
     search_parser.add_argument("-search_method", default="binary", 
             choices=["binary", "linear"], 
             help="Which kind of search method to use: binary or linear.")
+    search_parser.add_argument("-min_metric", default="levenshtein", 
+            choices=["levenshtein", "cosine", "mauve"], 
+            help="Which kind of metric to use for minimality: levenshtein, cosine, mauve.")
 
     misc_parser = argparse.ArgumentParser()
     misc_parser.add_argument("-grad_pred", default="original", 
