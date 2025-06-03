@@ -9,7 +9,7 @@ from tqdm.auto import tqdm
 import sys
 
 # Local imports
-from .utils import get_device, get_predictor_tokenized, wrap_text
+from .utils import get_device, get_predictor_tokenized, wrap_text, format_classif_input
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -26,6 +26,7 @@ class Editor():
                  length_penalty=0.5,
                  verbose=True,
                  prepend_label=True,
+                 lang="en"
                  ):
         self.device = get_device()
         self.num_gens = num_gens
@@ -45,12 +46,14 @@ class Editor():
         self.length_penalty = length_penalty 
         self.num_beams = num_beams
         self.prepend_label = prepend_label
+        self.lang = lang
 
     def get_editor_input(self, targ_pred_label, masked_editable_seg):
         """ Format input for editor """
-        prefix = "" if not self.prepend_label else "label: " + \
-                targ_pred_label + ". input: " 
-        return prefix + masked_editable_seg
+        if not self.prepend_label:
+            return masked_editable_seg
+        else:
+            return format_classif_input(masked_editable_seg, targ_pred_label, self.lang)
 
     # Why do these methods exist??
     def get_editable_seg_from_input(self, inp):

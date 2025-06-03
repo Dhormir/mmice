@@ -113,7 +113,9 @@ def load_models(args):
                         top_p=args.generation.top_p,
                         top_k=args.generation.top_k,
                         length_penalty=args.generation.length_penalty,
-                        verbose=False)
+                        verbose=False,
+                        lang=args.meta.lang
+                        )
     logger.info("Done loading models.")
     return editor, predictor
 

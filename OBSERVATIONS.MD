@@ -32,3 +32,7 @@ TBA
 ## edit_finder.py
 
 TBA
+
+## Final adjustments
+
+* 02 means the version used thap does more text cleanup
