@@ -123,11 +123,14 @@ class EditEvaluator():
         # output = outpu.mean()
         return 1 - np.abs(output.item())
 
-    def score_minimality_mauve(self, orig_sent, edited_sent, normalized=True):
-        similarity = compute_mauve(p_text=orig_sent, q_text=edited_sent,
-                            max_text_length=self.fluency_tokenizer.model_max_length,
-                            device_id=1, featurize_model_name="gpt2", batch_size=6,
-                            verbose=False)
+    def score_minimality_mauve(self, orig_sent: str, edited_sent: str, normalized=True):
+        p_text = [orig_sent] + orig_sent.split() + self.fluency_tokenizer.tokenize(orig_sent)
+        q_text = [edited_sent] + edited_sent.split() + self.fluency_tokenizer.tokenize(edited_sent)
+        similarity = compute_mauve(p_text=p_text,
+                                   q_text=q_text,
+                                   max_text_length=self.fluency_tokenizer.model_max_length,
+                                   device_id=1, featurize_model_name="gpt2", batch_size=12,
+                                   verbose=False)
         return 1 - similarity.mauve
 
 def sort_instances_by_score(scores, *args):

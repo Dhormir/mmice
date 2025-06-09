@@ -33,7 +33,8 @@ Returns:
 
 # @evaluate.utils.file_utils.add_start_docstrings(_DESCRIPTION, _KWARGS_DESCRIPTION)
 class Perplexity(evaluate.Metric):
-    def __init__(self, model_id, device=None):
+    def __init__(self, model_id, device=None, **kwargs):
+        print(kwargs)
         super(evaluate.Metric, self).__init__()
         if device is not None:
             assert device in ["gpu", "cpu", "cuda"], "device should be either gpu or cpu."
@@ -43,8 +44,8 @@ class Perplexity(evaluate.Metric):
                 self.device = "cpu"
         else:
             self.device = "cuda" if torch.cuda.is_available() else "cpu"
-
-        self.model = AutoModelForCausalLM.from_pretrained(model_id, trust_remote_code=True).to(self.device)
+        print(kwargs)
+        self.model = AutoModelForCausalLM.from_pretrained(model_id, *kwargs).to(self.device)
         if 'llama' in model_id or 'alpaca' in model_id:
             self.tokenizer = LlamaTokenizer.from_pretrained(model_id)
         else:
