@@ -113,7 +113,9 @@ def load_models(args):
                         top_p=args.generation.top_p,
                         top_k=args.generation.top_k,
                         length_penalty=args.generation.length_penalty,
-                        verbose=False)
+                        verbose=False,
+                        lang=args.meta.lang
+                        )
     logger.info("Done loading models.")
     return editor, predictor
 
@@ -167,6 +169,7 @@ def run_edit_test(args):
                              max_mask_frac=args.search.max_mask_frac,
                              search_method=args.search.search_method,
                              max_search_levels=args.search.max_search_levels,
+                             min_metric=args.search.min_metric,
                              )
     
     inputs = dr['text']

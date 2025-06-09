@@ -24,6 +24,7 @@ def load_42k_hcuch(data_files=None, column_names=['hallazgos', 'impresion', 'nod
     data = Dataset.from_pandas(df).remove_columns(['hallazgos', 'impresion', '__index_level_0__'])
     data = data.rename_column('nodulos', 'label')
     data = data.shuffle(42)
+    # For multilabel models we will make it focus only on the highest probability label
     return data.train_test_split(train_size=.75)
 
 def load_semeval_hate(data_files=None, column_names=['text', 'HS']):
