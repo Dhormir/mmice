@@ -14,7 +14,7 @@ import logging
 import torch
 import json
 import sys
-import os
+import os, re
 
 from typing import List, Optional, Any
 
@@ -131,6 +131,9 @@ def get_stage_two_parsers():
     search_parser.add_argument("-search_method", default="binary", 
             choices=["binary", "linear"], 
             help="Which kind of search method to use: binary or linear.")
+    search_parser.add_argument("-min_metric", default="levenshtein", 
+            choices=["levenshtein", "cosine", "mauve"], 
+            help="Which kind of metric to use for minimality: levenshtein, cosine, mauve.")
 
     misc_parser = argparse.ArgumentParser()
     misc_parser.add_argument("-grad_pred", default="original", 
@@ -201,9 +204,20 @@ def write_args(args_path, args):
 
 def clean_text(example, special_chars=["\n", "\t", "\x85", "\x97", "#", "<br />", "<br/>"]):
     text = example['text']
+    url_pattern = r'\b(?:http[s]?://|www\.)\S+\b'
+    text = re.sub(url_pattern, '', text)
     for char in special_chars:
         if char in text:
             text = text.replace(char, " ")
+
+    # Find the first @mention
+    first_mention = re.search(r'@\w+', text)
+    if first_mention:
+        end = first_mention.end()
+        text = text[:end] + re.sub(r'@\w+', '', text[end:])
+        
+    # Replace repeated whitespace with a single space
+    text = re.sub(r'\s+', ' ', text).strip()
     example['text'] = text.encode().lower()
     return example
 

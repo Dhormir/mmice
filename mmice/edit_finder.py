@@ -8,6 +8,7 @@ import time
 import logging
 import os
 import heapq
+from mauve import compute_mauve
 
 import torch
 from torch.utils.data import Dataset, DataLoader
@@ -106,11 +107,13 @@ class EditEvaluator():
             return lev
 
     def score_minimality_embeddings(self, orig_sent, edited_sent, normalized=True):
-        enc_orig_sent = self.fluency_tokenizer.encode(orig_sent)
-        enc_edited_sent = self.fluency_tokenizer.encode(edited_sent)
-        orig_sent_embeddings = self.fluency_model.embddings.word_embeddings(enc_orig_sent)
-        edited_sent_embeddings = self.fluency_model.embddings.word_embeddings(enc_edited_sent)
-
+        enc_orig_sent = self.fluency_tokenizer(orig_sent,
+                                               return_tensors="pt").to(self.device)
+        enc_edited_sent = self.fluency_tokenizer(edited_sent,
+                                                 return_tensors="pt").to(self.device)
+        
+        orig_sent_embeddings = self.fluency_model.encoder.embed_tokens(enc_orig_sent.input_ids)
+        edited_sent_embeddings = self.fluency_model.encoder.embed_tokens(enc_edited_sent.input_ids)
         cos = torch.nn.CosineSimilarity(dim=1)
         # We use the centroid of each sentence and detemine how similar they are
         output = cos(orig_sent_embeddings.sum(dim=1) / orig_sent_embeddings.size()[1],
@@ -118,7 +121,17 @@ class EditEvaluator():
         # As an alternative we can also determine it using the mean vector similarity
         # output = cos(orig_sent_embeddings, edited_sent_embeddings)
         # output = outpu.mean()
-        return output.item()
+        return 1 - np.abs(output.item())
+
+    def score_minimality_mauve(self, orig_sent: str, edited_sent: str, normalized=True):
+        p_text = [orig_sent] + orig_sent.split() + self.fluency_tokenizer.tokenize(orig_sent)
+        q_text = [edited_sent] + edited_sent.split() + self.fluency_tokenizer.tokenize(edited_sent)
+        similarity = compute_mauve(p_text=p_text,
+                                   q_text=q_text,
+                                   max_text_length=self.fluency_tokenizer.model_max_length,
+                                   device_id=1, featurize_model_name="gpt2", batch_size=12,
+                                   verbose=False)
+        return 1 - similarity.mauve
 
 def sort_instances_by_score(scores, *args):
     """ Sorts *args in order of decreasing scores """
@@ -176,7 +189,8 @@ class EditFinder():
         beam_width = 3, 
         search_method = "binary", 
         max_mask_frac = 0.5, 
-        max_search_levels = 10, 
+        max_search_levels = 10,
+        min_metric = "levenshtein",
         verbose = True 
     ):
         self.predictor = predictor
@@ -188,7 +202,21 @@ class EditFinder():
         self.max_search_levels = max_search_levels
         self.device = get_device()
         self.verbose = verbose
+        self.min_metric = min_metric
         self.max_mask_frac = max_mask_frac 
+
+    def score_minimality(self, edit_evaluator: EditEvaluator, orig_sent: str, edited_sent: str):
+        if self.min_metric == "levenshtein":
+             return edit_evaluator.score_minimality(
+                orig_sent, edited_sent, normalized=True)
+        elif self.min_metric == "cosine":
+            return edit_evaluator.score_minimality_embeddings(
+                orig_sent, edited_sent, normalized=True)
+        elif self.min_metric == "mauve":
+            return edit_evaluator.score_minimality_mauve(
+                orig_sent, edited_sent, normalized=True)
+        else:
+            raise Exception("Using an unimplemented metric.")
 
     def run_edit_round(self, edit_list, input_cand, contrast_pred_idx, num_rounds, mask_frac, 
                        edit_evaluator=None,
@@ -241,9 +269,10 @@ class EditFinder():
                 found_cand = True
                 # Score minimality because we order edits by minimality scores
                 if edit_evaluator is not None:
-                    minimality = edit_evaluator.score_minimality(
-                            edit_list.orig_editable_seg, 
-                            editable_seg_cand, normalized=True)
+                    minimality = self.score_minimality(
+                        edit_evaluator=edit_evaluator,
+                        orig_sent=edit_list.orig_editable_seg,
+                        edited_sent=editable_seg_cand)
                 edit = {"edited_editable_seg": editable_seg_cand, 
                         "edited_input": input_cand, 
                         "minimality": minimality, 
