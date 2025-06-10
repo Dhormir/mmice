@@ -2,9 +2,15 @@ from tqdm.contrib.logging import logging_redirect_tqdm
 from transformers import pipeline
 import torch
 
+import os
+
+# Set your desired cache directory
+os.environ['HF_HOME'] = 'D:\Repositories\multilingual_mice\.cache'
+
 # Local imports
 from mmice.stage_one import run_train_editor 
 from mmice.utils import get_args, get_dataset_reader, get_device
+
 
 if __name__ == '__main__':
 
