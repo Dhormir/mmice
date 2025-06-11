@@ -310,7 +310,7 @@ def run_train_editor(predictor, dataset_reader, args):
 
     # We get our masker
     masker = get_stage_one_masker(args, editor_tokenizer, predictor)
-
+    logger.info(f"Problem type: {predictor.model.config.problem_type}")
     # Defining the parameters for creation of dataloaders
     train_params = {'batch_size': args.train.train_batch_size,
                     'shuffle': True,

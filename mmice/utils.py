@@ -354,7 +354,7 @@ def load_base_editor(model_name, max_length=700, editor_path=None, lora=False):
                                                         truncation=True,
                                                         padding=True)
         else:  
-            model_config = UMT5Config.from_pretrained(model_name, force_download=True)
+            model_config = UMT5Config.from_pretrained(model_name)
             model_config.max_new_tokens = None
             model = UMT5ForConditionalGeneration.from_pretrained(editor_model_path,
                                                                 torch_dtype=torch.bfloat16,
@@ -366,7 +366,7 @@ def load_base_editor(model_name, max_length=700, editor_path=None, lora=False):
             tokenizer = T5TokenizerFast.from_pretrained(model_name,
                                                         model_max_length=max_length,
                                                         truncation=True,
-                                                        padding=True, force_download=True)
+                                                        padding=True)
         
     elif "mt5-" in model_name:
          # Load base model from the config
@@ -383,7 +383,7 @@ def load_base_editor(model_name, max_length=700, editor_path=None, lora=False):
                                                         truncation=True,
                                                         padding=True)
         else:
-            model_config = MT5Config.from_pretrained(model_name, force_download=True)
+            model_config = MT5Config.from_pretrained(model_name)
             model_config.max_new_tokens = None
             model = MT5ForConditionalGeneration.from_pretrained(editor_model_path,
                                                                 torch_dtype=torch.bfloat16,
@@ -397,7 +397,7 @@ def load_base_editor(model_name, max_length=700, editor_path=None, lora=False):
                                                         truncation=True,
                                                         padding=True)
     elif "myt5-" in model_name:
-        model_config = T5Config.from_pretrained(model_name, force_download=True)
+        model_config = T5Config.from_pretrained(model_name)
         model = T5ForConditionalGeneration.from_pretrained(editor_model_path,
                                                             torch_dtype=torch.bfloat16,
                                                             config=model_config)
@@ -406,7 +406,7 @@ def load_base_editor(model_name, max_length=700, editor_path=None, lora=False):
         tokenizer = MyT5Tokenizer.from_pretrained(model_name,
                                                 model_max_length=max_length,
                                                 truncation=True, from_slow=True,
-                                                padding=True, force_download=True)
+                                                padding=True)
     elif "t5-" in model_name:
         # Load base model from the config
         if lora and editor_path:
@@ -420,23 +420,23 @@ def load_base_editor(model_name, max_length=700, editor_path=None, lora=False):
                                                         truncation=True,
                                                         padding=True)
         else:  
-            model_config = T5Config.from_pretrained(model_name, force_download=True)
+            model_config = T5Config.from_pretrained(model_name)
             model = T5ForConditionalGeneration.from_pretrained(editor_model_path,
                                                                torch_dtype=torch.bfloat16,
                                                                config=model_config)
             tokenizer = T5TokenizerFast.from_pretrained(model_name,
                                                         model_max_length=max_length,
                                                         truncation=True,
-                                                        padding=True, force_download=True)
+                                                        padding=True)
 
     elif "bert" in model_name:
-        model_config = BertConfig.from_pretrained(model_name, force_download=True)
+        model_config = BertConfig.from_pretrained(model_name)
         model = BertForMaskedLM.from_pretrained(editor_model_path,
                                                 config=model_config)
         tokenizer = BertTokenizerFast.from_pretrained(model_name,
                                                     model_max_length=max_length,
                                                     truncation=True,
-                                                    padding=True, force_download=True)
+                                                    padding=True)
     return tokenizer, model
 
 
