@@ -518,10 +518,21 @@ class GradientMasker(Masker):
 
     def _get_mask_indices(self, **kwargs):
         """ Helper function to get indices of Editor tokens to mask. """
+        # TODO
+        # multilabel support goes in here
+        # multilabel support needs for the gradient to be signed.
+        # it needs the binarized label vector
+        # we can choose to either
+        #   - randomly choose one label and only mask those with sign variation
+        #     depending of whether its label is 0 or 1.
+        #   - rank the tokens for all the labels, randomly choose one label mask the highest token
+        #     and remove it from the other labels and so on. Also with the binarized label variation.
+        #     we do it until we ran out of tokens
         editable_seq = kwargs.pop('editable_seq')
         pred_idx = kwargs.pop('pred_idx')
         kwargs.pop('editor_tokens')
         editor_tokenized = kwargs.pop('editor_tokenized')
-        editor_mask_indices = self.get_important_editor_tokens(editable_seq, pred_idx, editor_tokenized, **kwargs)
+        editor_mask_indices = self.get_important_editor_tokens(
+            editable_seq, pred_idx, editor_tokenized, **kwargs)
         # logger.info(f"editor_mask_indices:\n{editor_mask_indices}")
         return editor_mask_indices
