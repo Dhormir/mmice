@@ -191,6 +191,7 @@ class Masker():
             span_idx -= 1
         if "bert" in self.editor_tok_wrapper.name_or_path:
             label = editable_seq
+            
         return grpd_editor_mask_indices, editor_mask_indices, masked_seg, label
 
     def mask_bert_string(self, span, editable_seg, editor_tokenized):
