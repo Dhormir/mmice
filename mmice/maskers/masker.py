@@ -103,15 +103,18 @@ class Masker():
             editor_mask_indices.remove(0)
 
         new_editor_mask_indices = set(editor_mask_indices)
-        grouped_editor_mask_indices = [list(group) for group in mit.consecutive_groups(sorted(new_editor_mask_indices))]
+        grouped_editor_mask_indices = [
+            list(group) for group in
+            mit.consecutive_groups(sorted(new_editor_mask_indices))]
 
         if len(grouped_editor_mask_indices) > 27:
             for t_idx in editor_mask_indices:
                 if t_idx + 2 in editor_mask_indices:
                     new_editor_mask_indices.add(t_idx + 1)
 
-        grouped_editor_mask_indices = [list(group) for group in \
-                mit.consecutive_groups(sorted(new_editor_mask_indices))]
+        grouped_editor_mask_indices = [
+            list(group) for group in
+            mit.consecutive_groups(sorted(new_editor_mask_indices))]
 
         if len(grouped_editor_mask_indices) > 27:
             for t_idx in editor_mask_indices:
@@ -120,7 +123,9 @@ class Masker():
                     new_editor_mask_indices.add(t_idx + 2)
 
         new_editor_mask_indices = list(new_editor_mask_indices)
-        grouped_editor_mask_indices = [list(group) for group in mit.consecutive_groups(sorted(new_editor_mask_indices))]
+        grouped_editor_mask_indices = [
+            list(group) for group in
+            mit.consecutive_groups(sorted(new_editor_mask_indices))]
         # Mask max of 100 spans
         grouped_editor_mask_indices = grouped_editor_mask_indices[:99]
         return grouped_editor_mask_indices

@@ -517,13 +517,11 @@ class GradientMasker(Masker):
         return highest_editor_tok_indices
 
     def _get_mask_indices(self, **kwargs):
-        # TODO
-        # Check this??
         """ Helper function to get indices of Editor tokens to mask. """
         editable_seq = kwargs.pop('editable_seq')
         pred_idx = kwargs.pop('pred_idx')
         kwargs.pop('editor_tokens')
         editor_tokenized = kwargs.pop('editor_tokenized')
         editor_mask_indices = self.get_important_editor_tokens(editable_seq, pred_idx, editor_tokenized, **kwargs)
-        #logger.info(f"editor_mask_indices:\n{editor_mask_indices}")
+        # logger.info(f"editor_mask_indices:\n{editor_mask_indices}")
         return editor_mask_indices
