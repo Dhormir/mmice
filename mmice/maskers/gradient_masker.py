@@ -2,6 +2,8 @@ import math
 import numpy as np
 from typing import List, Dict, Any
 import logging
+import random
+from collections import defaultdict
 
 from torch import cuda, clamp_min
 from torch import Tensor
@@ -516,6 +518,87 @@ class GradientMasker(Masker):
         # highest_predic_tok_indices = ordered_predic_tok_indices[:num_return_toks]
         return highest_editor_tok_indices
 
+    def randomly_merge_lists(self, lists: List[List]) -> List:
+        """
+        Randomly merge multiple lists that contain the same unique elements in different orders.
+        At each step, randomly pick one of the first elements from the input lists,
+        add it to the result, and remove it from all lists.
+        
+        Args:
+            lists: A list of lists with the same unique elements in different order.            
+        Returns:
+            A list with elements merged in random order.
+        """
+        # Convert input lists to mutable copies
+        lists = [list(lst) for lst in lists]
+        result = []
+        while any(lists) and any(lst for lst in lists if lst):
+            candidates = [lst[0] for lst in lists if lst]
+            if not candidates:
+                # Safety: avoid random.choice([])
+                break
+            choice = random.choice(candidates)
+            result.append(choice)
+            # Remove the chosen element from all lists
+            for lst in lists:
+                if choice in lst:
+                    lst.remove(choice)
+        return result
+
+    def priority_random_merge(self, lists: List[List[Any]], top_k: int = 3) -> List[Any]:
+        """
+        Merge lists respecting element importance (based on position), while introducing randomness.
+
+        Args:
+            lists: List of lists, each sorted by importance (most important first).
+            top_k: How many top candidates (lowest cumulative ranks) to consider at each step.
+
+        Returns:
+            List of elements in merged, randomized-priority order.
+        """
+        if not lists:
+            return []
+
+        n = len(lists[0])
+        all_elements = set(lists[0])
+        assert all(set(lst) == all_elements for lst in lists), "All lists must have the same elements"
+
+        # Build cumulative score: lower score means higher importance
+        score_dict = defaultdict(int)
+        for lst in lists:
+            for rank, item in enumerate(lst):
+                score_dict[item] += rank
+
+        remaining = dict(score_dict)  # elements to process
+        result = []
+
+        while remaining:
+            # Sort elements by score (lower = more important), get top_k
+            sorted_candidates = sorted(remaining.items(), key=lambda x: x[1])
+            top_candidates = sorted_candidates[:min(top_k, len(sorted_candidates))]
+            choices = [item for item, _ in top_candidates]
+
+            # Randomly pick one of the top candidates
+            selected = random.choice(choices)
+            result.append(selected)
+            del remaining[selected]
+
+        return result
+
+
+    def multilabel_editor_mask_indices(self, editable_seq, pred_idx, editor_tokenized, **kwargs):
+        mask_indices_list = []
+        for idx, pred_value in enumerate(pred_idx):
+            self.sign_direction = 1 if pred_value == 1 else -1
+            editor_mask_indices = self.get_important_editor_tokens(
+                editable_seq, idx, editor_tokenized, **kwargs)
+            # logger.info(f"pred_idx: {idx}, len(editor_mask_indices): {len(editor_mask_indices)}")
+            mask_indices_list.append(editor_mask_indices)
+        # merged_editor_mask_indices = self.randomly_merge_lists(mask_indices_list)
+        merged_editor_mask_indices = self.randomly_merge_lists(mask_indices_list)
+        return merged_editor_mask_indices
+            
+
     def _get_mask_indices(self, **kwargs):
         """ Helper function to get indices of Editor tokens to mask. """
         # TODO
@@ -532,6 +615,12 @@ class GradientMasker(Masker):
         pred_idx = kwargs.pop('pred_idx')
         kwargs.pop('editor_tokens')
         editor_tokenized = kwargs.pop('editor_tokenized')
+        logger.info(f"Problem type: {self.predictor.model.config.problem_type}")
+        
+        if self.predictor.model.config.problem_type == "multi_label_classification":
+            return self.multilabel_editor_mask_indices(
+                editable_seq, pred_idx,
+                editor_tokenized, **kwargs)
         editor_mask_indices = self.get_important_editor_tokens(
             editable_seq, pred_idx, editor_tokenized, **kwargs)
         # logger.info(f"editor_mask_indices:\n{editor_mask_indices}")

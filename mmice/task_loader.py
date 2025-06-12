@@ -24,7 +24,7 @@ def load_42k_hcuch(data_files=None,
                   {'condensacion': int, 'nodulos': int, 'quistes': int}}
 
     def combine_columns(example):
-        example["labels"] = [example["condensacion"], example["nodulos"], example["quistes"]]
+        example["label"] = [example["condensacion"], example["nodulos"], example["quistes"]]
         return example
 
     df_list = [pd.read_csv(data_file, **kwargs) for data_file in data_files]
@@ -34,7 +34,7 @@ def load_42k_hcuch(data_files=None,
     data = Dataset.from_pandas(df).remove_columns(['hallazgos', 'impresion', '__index_level_0__'])
     data = data.map(combine_columns)
     new_features = data.features.copy()
-    new_features["labels"] = Sequence(feature=Value("int8"), length=3)
+    new_features["label"] = Sequence(feature=Value("int8"), length=3)
 
     data = data.cast(new_features)
     data = data.remove_columns(['condensacion', 'nodulos', 'quistes'])

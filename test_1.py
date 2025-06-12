@@ -16,7 +16,7 @@ if __name__ == '__main__':
 
     args = get_args("stage1")
     predictor = pipeline("text-classification",
-                         model="trained_predictors/chileanhate/model",
+                         model=f"trained_predictors/{args.meta.task}/model",
                          device=get_device(),
                          max_length=512,
                          padding=True,
