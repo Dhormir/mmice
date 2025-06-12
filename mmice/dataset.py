@@ -63,6 +63,27 @@ class StageOneDataset(Dataset):
                 'target_ids_y': target_ids.to(dtype=torch.long),
                 }
 
+    def multilabels_to_array(self, labels: list, label2id: dict):
+        length = max(label2id, key=lambda k: label2id[k]) + 1
+        logger.info("amount of labels: {length}")
+        bool_array = [0] * length
+
+        for label in labels:
+            if label in label2id:
+                bool_array[label2id[label]] = 1
+        return bool_array
+
+    def array_to_multilabels(self, bool_array: list, id2label: dict):
+        result = []
+        for idx, val in enumerate(bool_array):
+            if idx in id2label:
+                label = id2label[idx]
+                if val == 1:
+                    result.append(label)
+                else:
+                    result.append('NO ' + label)
+        return ", ".join(result)
+        
 
     def create_inputs(self, orig_inputs, orig_labels, predictor, masker, target_label="pred",
                       mask_fracs=np.arange(0.2, 0.6, 0.05), mask_frac_probs=[0.125] * 8):
@@ -82,10 +103,22 @@ class StageOneDataset(Dataset):
             masker.mask_frac = RNG.choice(mask_fracs, 1, p=mask_frac_probs)[0]
             # This is more memory efficient than always using the predictor whether we are using gold or predicted labels
             label_to_use = predictor(orig_inp)[0]['label'] if target_label == "pred" else orig_label
-            # If its not in mapping we assume it's because it is already encoded and therefore we do nothing
-            label_idx = labels_to_ints[label_to_use] if label_to_use in labels_to_ints.keys() else label_to_use
-            # If these throws error something is really wrong with the dataset
-            label_to_use = label_to_use if label_to_use in labels_to_ints.keys() else predictor.model.config.id2label[label_to_use]
+            logger.info(f"Problem type: {predictor.model.config.problem_type}")
+            # if multilabel we assume th
+            if predictor.model.config.problem_type == "multi_label_classification":
+                logger.info(f"labels_to_ints: {labels_to_ints}")
+                # we assume disjoint sets means we are recieving a boolean vector of labels
+                are_disjoint = set(label_to_use).isdisjoint(set(labels_to_ints.keys()))
+                label_idx = self.multilabels_to_array(label_to_use, labels_to_ints) if not are_disjoint else label_to_use
+                logger.info(f"label_idx: {label_idx}")
+                label_to_use = self.array_to_multilabels(label_idx, predictor.model.config.id2label)
+                logger.info(f"label to use: {label_to_use}")
+            else:
+                # If its not in mapping we assume it's because it is already encoded and therefore we do nothing
+                label_idx = labels_to_ints[label_to_use] if label_to_use in labels_to_ints.keys() else label_to_use
+                # If these throws error something is really wrong with the dataset
+                label_to_use = label_to_use if label_to_use in labels_to_ints.keys() else predictor.model.config.id2label[label_to_use]
+
             predictor_tokenized = get_predictor_tokenized(predictor, orig_inp)
             predictor_tok_end_idx = predictor_tokenized.input_ids.size(dim=1)
             try:
