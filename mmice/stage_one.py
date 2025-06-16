@@ -13,10 +13,12 @@ import logging
 from .maskers.gradient_masker import GradientMasker
 from .maskers.random_masker import RandomMasker
 from .dataset import StageOneDataset, RaceStageOneDataset
-from .utils import logger, write_args, load_base_editor
+from .utils import write_args, load_base_editor
 
 FORMAT = "[%(filename)s:%(lineno)s - %(funcName)20s() ] %(message)s"
 logging.basicConfig(level=os.environ.get("LOGLEVEL", "INFO"), format=FORMAT)
+
+logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 # For better pytorch performance on distributed GPU

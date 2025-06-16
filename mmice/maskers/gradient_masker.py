@@ -559,19 +559,18 @@ class GradientMasker(Masker):
         #     we do it until we ran out of tokens
         editable_seq = kwargs.pop('editable_seq')
         pred_idx = kwargs.pop('pred_idx')
-        if "target_pred_label_value" in kwargs.keys():
-            target_pred_label_value = kwargs.pop('target_pred_label_value')
-            logger.info(f"pred_idx: {pred_idx}, target_pred_label_value: {target_pred_label_value}")
+        
+        if "pred_value" in kwargs.keys():
+            pred_value = kwargs.pop('pred_value')
+            logger.debug(f"pred_idx: {pred_idx}, pred_value: {pred_value}")
+
         kwargs.pop('editor_tokens')
         editor_tokenized = kwargs.pop('editor_tokenized')
-        # logger.info(f"Problem type: {self.predictor.model.config.problem_type}")
-        if self.predictor.model.config.problem_type == "multi_label_classification" and not isinstance(pred_idx, int):
-            return self.multilabel_editor_mask_indices(
-                editable_seq, pred_idx,
-                editor_tokenized, **kwargs)
-        elif self.predictor.model.config.problem_type == "multi_label_classification" and isinstance(pred_idx, int):
-            self.sign_direction = 1 if target_pred_label_value == 1 else -1
+        
+        if self.predictor.model.config.problem_type == "multi_label_classification" and isinstance(pred_idx, int):
+            self.sign_direction = 1 if pred_value == 1 else -1
+        logger.debug(f"self.sign_direction: {self.sign_direction}")
         editor_mask_indices = self.get_important_editor_tokens(
             editable_seq, pred_idx, editor_tokenized, **kwargs)
-        # logger.info(f"editor_mask_indices:\n{editor_mask_indices}")
+        
         return editor_mask_indices
