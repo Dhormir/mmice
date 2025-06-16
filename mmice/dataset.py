@@ -52,7 +52,6 @@ class StageOneDataset(Dataset):
         eos_id = torch.LongTensor([self.tokenizer.encode(label_text,
                                                          truncation=True,
                                                          padding='max_length',
-                                                         pad_to_max_length=True,
                                                          max_length=self.max_length,)[-1]])
         return {'eos_id': eos_id,
                 'source_ids': source_ids.to(dtype=torch.long),
@@ -80,7 +79,7 @@ class StageOneDataset(Dataset):
                     result.append(label)
                 else:
                     result.append('NO ' + label)
-        return ", ".join(result)
+        return result
         
 
     def create_inputs(self, orig_inputs, orig_labels, predictor, masker, target_label="pred",
@@ -101,16 +100,12 @@ class StageOneDataset(Dataset):
             masker.mask_frac = RNG.choice(mask_fracs, 1, p=mask_frac_probs)[0]
             # This is more memory efficient than always using the predictor whether we are using gold or predicted labels
             label_to_use = predictor(orig_inp)[0]['label'] if target_label == "pred" else orig_label
-            # logger.info(f"Problem type: {predictor.model.config.problem_type}")
-            # if multilabel we assume th
+            
             if predictor.model.config.problem_type == "multi_label_classification":
-                #logger.info(f"labels_to_ints: {labels_to_ints}")
                 # we assume disjoint sets means we are recieving a boolean vector of labels
                 are_disjoint = set(label_to_use).isdisjoint(set(labels_to_ints.keys()))
                 label_idx = self.multilabels_to_array(label_to_use, labels_to_ints) if not are_disjoint else label_to_use
-                #logger.info(f"label_idx: {label_idx}")
                 label_to_use = self.array_to_multilabels(label_idx, predictor.model.config.id2label)
-                #logger.info(f"label to use: {label_to_use}")
             else:
                 # If its not in mapping we assume it's because it is already encoded and therefore we do nothing
                 label_idx = labels_to_ints[label_to_use] if label_to_use in labels_to_ints.keys() else label_to_use
@@ -119,25 +114,42 @@ class StageOneDataset(Dataset):
 
             predictor_tokenized = get_predictor_tokenized(predictor, orig_inp)
             predictor_tok_end_idx = predictor_tokenized.input_ids.size(dim=1)
+
             try:
                 # Q: why make the masker return more that what will be used?
                 # A: Maybe it's for stage two...
-                _, _, masked_input, target = masker.get_masked_string(orig_inp,
-                                                                      pred_idx=label_idx,
-                                                                      predictor_tok_end_idx=predictor_tok_end_idx)
-                masked_string = format_classif_input(masked_input,
-                                                     label_to_use,
-                                                     self.lang) 
-                masked_strings.append(masked_string)
-                targets.append(target)
+                mask_string = lambda pred: masker.get_masked_string(
+                    orig_inp,
+                    pred_idx=pred[0],
+                    pred_value=pred[1],
+                    predictor_tok_end_idx=predictor_tok_end_idx)
+                format_input = lambda map: format_classif_input(
+                    map[0], map[1], self.lang)
+
+                # ToDO
+                # Check for only one label_idx
+                map_mask_string = map(mask_string, enumerate(label_idx))
+                map_filter_mask_outputs = map(lambda outputs: outputs[2:], map_mask_string)
+                masked_outputs = list(map_filter_mask_outputs)
+                
+                map_format_input = map(format_input, zip(masked_outputs[:][0], label_to_use))
+                
+                masked_strings_ = list(map_format_input)
+                masked_strings += masked_strings_
+                targets_ = masked_outputs[:][1]
+                targets += targets_
 
                 verbose = True if i % 500 == 0 else False
                 if verbose:
                     rounded_mask_frac = round(masker.mask_frac, 3)
+                    logger.info(wrap_text(f"Problem type: {predictor.model.config.problem_type}"))
+                    logger.info(wrap_text(f"labels_to_ints: {labels_to_ints}"))
+                    logger.info(wrap_text(f"label_idx: {label_idx}"))
+                    logger.info(wrap_text(f"label to use: {label_to_use}"))
                     logger.info(wrap_text(f"Original input ({i}): " + orig_inp))
                     logger.info(wrap_text(f"Mask frac: {rounded_mask_frac}"))
-                    logger.info(wrap_text(f"Editor input: {masked_string}"))
-                    logger.info(wrap_text(f"Editor target: {target}"))
+                    logger.info(wrap_text(f"Editor input: {masked_strings_[0]}"))
+                    logger.info(wrap_text(f"Editor target: {targets_[0]}"))
                     logger.info(wrap_text(f"Errors: {num_errors}"))
                 
             except MaskError as e:
