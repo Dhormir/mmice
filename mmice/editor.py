@@ -115,7 +115,8 @@ class Editor():
         Returns dicts with edited inputs (i.e. whole inputs, dicts in the case
         of RACE) and edited editable segs (i.e. just the parts of inputs
         that are editable, articles in the case of RACE). """
-        assert targ_pred_idx != orig_pred_idx
+        if self.predictor.model.config.problem_type != "multi_label_classification":
+            assert targ_pred_idx != orig_pred_idx
 
         if self.grad_pred == "contrast":
             grad_pred_idx = targ_pred_idx 
@@ -123,10 +124,15 @@ class Editor():
             grad_pred_idx = orig_pred_idx 
         else:
             raise ValueError
-
+        # TODO
+        # pass target predicted label value in multilabel case
+        target_pred_label_value = None
+        if self.predictor.model.config.problem_type == "multi_label_classification":
+            target_pred_label_value = 1 if targ_pred_label in self.predictor_labels_to_ints.keys() else 0
         num_spans, _, masked_inp, orig_spans, max_length = \
                 self._prepare_input_for_editor(inp, grad_pred_idx,
-                                               sorted_token_indices=sorted_token_indices)
+                                               sorted_token_indices=sorted_token_indices,
+                                               target_pred_label_value=target_pred_label_value)
 
         if "t5" in self.tokenizer.name_or_path:
             edited_editable_segs = self._sample_edits(targ_pred_label, masked_inp, targ_pred_idx,
@@ -154,7 +160,7 @@ class Editor():
             edited_cands[idx] = cand
         return edited_cands, masked_inp
 
-    def _prepare_input_for_editor(self, inp, grad_pred_idx, sorted_token_indices=None):
+    def _prepare_input_for_editor(self, inp, grad_pred_idx, sorted_token_indices=None, **kwargs):
         """ Helper function that prepares masked input for Editor. """
         tokenized_input = self.tokenizer(inp)
         # we heuristically eliminate the last token which is end of sentence
@@ -167,7 +173,7 @@ class Editor():
                     self.masker.get_masked_string(inp, editor_mask_indices=token_ind_to_mask)
         else:
             grouped_ind_to_mask, token_ind_to_mask, masked_inp, orig_spans = \
-                    self.masker.get_masked_string(inp, grad_pred_idx)
+                    self.masker.get_masked_string(inp, grad_pred_idx, **kwargs)
 
         max_length = math.ceil((self.masker.mask_frac + 0.2) * \
                 len(sorted_token_indices))
@@ -435,6 +441,9 @@ class Editor():
             for idx in unique_batch_indices:
                 ot = new_orig_spans_lst[idx].replace("<pad>", "")
                 temp, edit_preds = self._get_pred_with_replacement(new_editable_segs[idx], ot)
+                if self.predictor.model.config.problem_type == "multi_label_classification":
+                    is_label = targ_pred_label in self.predictor_labels_to_ints.keys()
+                    targ_pred_label = targ_pred_label if is_label else targ_pred_label[3:]
                 # predictions are always sorted by score from higher to lower
                 edit_probs = [edit_pred['score'] for edit_pred in edit_preds]
                 edit_labels = [edit_pred['label'] for edit_pred in edit_preds]
@@ -444,6 +453,8 @@ class Editor():
                 predicted_label = edit_preds[0]["label"]
                 contrast_label = edit_labels[targ_pred_idx]
                 if predicted_label == contrast_label: 
+                    edited_editable_segs.append(temp)
+                elif self.predictor.model.config.problem_type == "multi_label_classification" and edit_probs[targ_pred_idx] < .5:
                     edited_editable_segs.append(temp)
 
             highest_indices = np.argsort(targ_probs)[-k_intermediate:]
@@ -463,9 +474,6 @@ class Editor():
             assert es.find("</s>") in [len(es)-4, -1]
             edited_editable_segs[idx] = es.replace("</s>", " ")
             matches = re.findall(r"<extra_id_([0-9]|[1-9][0-9])>", es)
-            # logger.info(f"matches:\n{matches}")     
-            # logger.info(f"len(matches): {len(matches)}")
-            # logger.info(f"len(matches) > 1: {len(matches) > 1}")
             if len(matches) == 1:
                 edited_editable_segs[idx] = re.sub(r"<extra_id_([0-9]|[1-9][0-9])>", '', es)
             assert len(matches) <= 1, \

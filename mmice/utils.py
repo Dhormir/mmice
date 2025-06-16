@@ -264,7 +264,7 @@ def format_multiple_choice_input(context, question, options, answer_idx):
 
 
 def load_predictor(task, predictor_folder="trained_predictors/"):
-    task_options = ["imdb", "race", "newsgroups", "chileanhate"]
+    task_options = ["imdb", "race", "newsgroups", "chileanhate", "42k_hcuch"]
     if task not in task_options:
         raise NotImplementedError(f"Task {task} not implemented; \
                 must be one of {task_options}")

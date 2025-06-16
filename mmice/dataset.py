@@ -38,13 +38,11 @@ class StageOneDataset(Dataset):
         source = self.tokenizer([input_text],
                                 truncation=True,
                                 padding='max_length',
-                                pad_to_max_length=True,
                                 max_length=self.max_length,
                                 return_tensors='pt')
         target = self.tokenizer([label_text],
                                 truncation=True,
                                 padding='max_length',
-                                pad_to_max_length=True,
                                 max_length=self.max_length,
                                 return_tensors='pt')
 
@@ -103,16 +101,16 @@ class StageOneDataset(Dataset):
             masker.mask_frac = RNG.choice(mask_fracs, 1, p=mask_frac_probs)[0]
             # This is more memory efficient than always using the predictor whether we are using gold or predicted labels
             label_to_use = predictor(orig_inp)[0]['label'] if target_label == "pred" else orig_label
-            logger.info(f"Problem type: {predictor.model.config.problem_type}")
+            # logger.info(f"Problem type: {predictor.model.config.problem_type}")
             # if multilabel we assume th
             if predictor.model.config.problem_type == "multi_label_classification":
-                logger.info(f"labels_to_ints: {labels_to_ints}")
+                #logger.info(f"labels_to_ints: {labels_to_ints}")
                 # we assume disjoint sets means we are recieving a boolean vector of labels
                 are_disjoint = set(label_to_use).isdisjoint(set(labels_to_ints.keys()))
                 label_idx = self.multilabels_to_array(label_to_use, labels_to_ints) if not are_disjoint else label_to_use
-                logger.info(f"label_idx: {label_idx}")
+                #logger.info(f"label_idx: {label_idx}")
                 label_to_use = self.array_to_multilabels(label_idx, predictor.model.config.id2label)
-                logger.info(f"label to use: {label_to_use}")
+                #logger.info(f"label to use: {label_to_use}")
             else:
                 # If its not in mapping we assume it's because it is already encoded and therefore we do nothing
                 label_idx = labels_to_ints[label_to_use] if label_to_use in labels_to_ints.keys() else label_to_use
