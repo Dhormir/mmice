@@ -1,6 +1,5 @@
 from tqdm.contrib.logging import logging_redirect_tqdm
 from transformers import pipeline
-import torch
 
 import os
 

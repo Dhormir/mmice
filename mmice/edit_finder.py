@@ -244,6 +244,11 @@ class EditFinder():
 
         probs, pred_indices, highest_indices = get_scores(self.predictor, instance_cands,
                                                           contrast_pred_idx, k=self.beam_width)
+        is_multilabel = self.predictor.model.config.problem_type == "multi_label_classification"
+        is_label = edit_list.contrast_label in self.labels_to_ints.keys()
+        if is_multilabel and is_label:
+            probs = 1 - probs
+            
         input_cands = [input_cands[idx] for idx in highest_indices]
         editable_seg_cands = [editable_seg_cands[idx] for idx in highest_indices]
         
@@ -255,6 +260,7 @@ class EditFinder():
         iterator = enumerate(sorted_cands)
         for sort_idx, (prob, pred_idx, input_cand, editable_seg_cand) in iterator:
             if self.verbose and sort_idx == 0:
+                logger.info(wrap_text(f"Post edit round, contr label: {edit_list.contrast_label}"))
                 logger.info(wrap_text(f"Post edit round, top contr prob: {prob}"))
                 logger.info(wrap_text(f"Post edit round, top cand: {input_cand}"))
             pred_idx = int(pred_idx)
@@ -294,7 +300,6 @@ class EditFinder():
             self, edit_list, input_cand, contrast_pred_idx, num_rounds, 
             min_mask_frac=0.0, max_mask_frac=0.5, num_levels=1, 
             max_levels=None, edit_evaluator=None, sorted_token_indices=None):
-
         """ Runs binary search over masking percentages, starting at
         midpoint between min_mask_frac and max_mask_frac.
         Calls run_edit_round at each mask percentage. """
@@ -380,22 +385,36 @@ class EditFinder():
         assert num_toks <= self.predictor.tokenizer.model_max_length
 
         start_time = time.time()
+        # Multilabel and multiclass works the same way
         orig_preds = self.predictor(editable_seg)[0]
-        # logger.info(f"orig_preds: {orig_preds}")
+        logger.info(f"orig_preds: {orig_preds}")
         # transformers pipeline always return in decreasing order
         orig_pred_label = orig_preds[0]["label"]
         orig_pred_idx = self.labels_to_ints[orig_pred_label]
 
         assert orig_pred_label == str(orig_pred_label)
-
-        contrast_label = orig_preds[contrast_pred_idx]["label"]
-        orig_contrast_prob = orig_preds[contrast_pred_idx]["score"]
-        contrast_pred_idx = self.labels_to_ints[contrast_label]
+        # For multilabel classification the contrast label corresponds
+        # to the negation of the chosen label
+        if self.predictor.model.config.problem_type == "multi_label_classification":
+            contrast_label = "NO " + orig_pred_label if orig_preds[0]["score"] > .5 else orig_pred_label
+            orig_contrast_prob = 1 - orig_preds[0]["score"]
+            contrast_pred_idx = orig_pred_idx
+            contrast = {'label': contrast_label,
+                        'score': orig_contrast_prob,
+                        'idx': contrast_pred_idx}
+        else:
+            contrast_label = orig_preds[contrast_pred_idx]["label"]
+            orig_contrast_prob = orig_preds[contrast_pred_idx]["score"]
+            contrast_pred_idx = self.labels_to_ints[contrast_label]
+            contrast = {'label': contrast_label,
+                        'score': orig_contrast_prob,
+                        'idx': contrast_pred_idx}
 
         assert orig_contrast_prob < 1.0
 
         num_rounds = 0
         new_pred_label = orig_pred_label
+        logger.info(f"Original label: {orig_pred_label}")
         logger.info(f"Contrast label: {contrast_label}")
         logger.info(f"Orig contrast prob: {round(orig_contrast_prob, 3)}")
 
@@ -430,7 +449,7 @@ class EditFinder():
                 
                 if self.search_method == "binary":
                     self.binary_search_edit(edit_list, input_cand, 
-                            self.labels_to_ints[contrast_label], num_rounds, 
+                            contrast['idx'], num_rounds, 
                             max_mask_frac=self.max_mask_frac, num_levels=1, 
                             edit_evaluator=edit_evaluator,
                             sorted_token_indices=sorted_token_indices)

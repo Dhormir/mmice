@@ -279,6 +279,7 @@ def run_train_editor(predictor, dataset_reader, args):
         )
         # Wrap model with LoRA
         editor_model = get_peft_model(editor_model, lora_config)
+        logger.info("Trasnformed regular model to LoRA")
 
     # We use the accelerator to prepare the model
     editor_model = ACCELERATOR.prepare(editor_model)
