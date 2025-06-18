@@ -122,21 +122,23 @@ class StageOneDataset(Dataset):
                     orig_inp,
                     pred_idx=pred[0],
                     pred_value=pred[1],
-                    predictor_tok_end_idx=predictor_tok_end_idx)
+                    predictor_tok_end_idx=predictor_tok_end_idx)[2:]
                 format_input = lambda map: format_classif_input(
                     map[0], map[1], self.lang)
 
                 # ToDO
                 # Check for only one label_idx
                 map_mask_string = map(mask_string, enumerate(label_idx))
-                map_filter_mask_outputs = map(lambda outputs: outputs[2:], map_mask_string)
-                masked_outputs = list(map_filter_mask_outputs)
+                masked_outputs = list(map_mask_string)
                 
-                map_format_input = map(format_input, zip(masked_outputs[:][0], label_to_use))
+                map_format_input = map(format_input,
+                                       zip(masked_outputs[:][0], label_to_use))
                 
                 masked_strings_ = list(map_format_input)
+                assert all(isinstance(item, str) for item in masked_strings_)
                 masked_strings += masked_strings_
                 targets_ = masked_outputs[:][1]
+                assert all(isinstance(item, str) for item in targets_)
                 targets += targets_
 
                 verbose = True if i % 500 == 0 else False
