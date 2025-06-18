@@ -193,7 +193,7 @@ def write_args(args_path, args):
     """
     logger.info("Writing args to: " + args_path)
     for name, sub_args in args.items():
-        logger.info(f"{name} args: {sub_args}")
+        logger.info(wrap_text(f"{name} args: {sub_args}"))
     f = open(args_path, "w")
     f.write(json.dumps(args, indent=4))
     f.close()
