@@ -562,14 +562,14 @@ class GradientMasker(Masker):
         
         if "pred_value" in kwargs.keys():
             pred_value = kwargs.pop('pred_value')
-            logger.debug(f"pred_idx: {pred_idx}, pred_value: {pred_value}")
+            logger.info(f"pred_idx: {pred_idx}, pred_value: {pred_value}")
 
         kwargs.pop('editor_tokens')
         editor_tokenized = kwargs.pop('editor_tokenized')
         
         if self.predictor.model.config.problem_type == "multi_label_classification" and isinstance(pred_idx, int):
             self.sign_direction = 1 if pred_value == 1 else -1
-        logger.debug(f"self.sign_direction: {self.sign_direction}")
+        logger.info(f"self.sign_direction: {self.sign_direction}")
         editor_mask_indices = self.get_important_editor_tokens(
             editable_seq, pred_idx, editor_tokenized, **kwargs)
         
