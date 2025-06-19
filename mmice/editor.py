@@ -94,7 +94,7 @@ class Editor():
             return batchencoding, [None] 
         return batchencoding
 
-    def get_sorted_token_indices(self, inp, grad_pred_idx):
+    def get_sorted_token_indices(self, inp, grad_pred_idx, pred_value):
         """ Get token indices to mask, sorted by gradient value """
         # this first call quite literally does nothing!!!
         editable_seg = inp
@@ -104,6 +104,9 @@ class Editor():
             max_length=self.max_length,
             return_tensors="pt"
         )
+        if self.predictor.model.config.problem_type == "multi_label_classification":
+            logger.info("changing sign_direction")
+            self.sign_direction = 1 if pred_value >= .5 else -1
         editable_seg = self.tokenizer.decode(editor_tokenized["input_ids"][0][:-1])
         sorted_token_indices = self.masker.get_important_editor_tokens(editable_seg, grad_pred_idx, editor_tokenized,
                                                                        num_return_toks=len(editor_tokenized.input_ids[0]))
@@ -126,13 +129,13 @@ class Editor():
             raise ValueError
         # TODO
         # pass target predicted label value in multilabel case
-        target_pred_label_value = None
+        pred_value = None
         if self.predictor.model.config.problem_type == "multi_label_classification":
-            target_pred_label_value = 1 if targ_pred_label in self.predictor_labels_to_ints.keys() else 0
+            pred_value = 1 if targ_pred_label in self.predictor_labels_to_ints.keys() else 0
         num_spans, _, masked_inp, orig_spans, max_length = \
                 self._prepare_input_for_editor(inp, grad_pred_idx,
                                                sorted_token_indices=sorted_token_indices,
-                                               target_pred_label_value=target_pred_label_value)
+                                               pred_value=pred_value)
 
         if "t5" in self.tokenizer.name_or_path:
             edited_editable_segs = self._sample_edits(targ_pred_label, masked_inp, targ_pred_idx,
@@ -169,9 +172,11 @@ class Editor():
         if sorted_token_indices is not None: 
             num_return_toks = math.ceil(self.masker.mask_frac * len(tokens))
             token_ind_to_mask = sorted_token_indices[:num_return_toks]
+            logger.info("In Here I")
             grouped_ind_to_mask, token_ind_to_mask, masked_inp, orig_spans = \
-                    self.masker.get_masked_string(inp, editor_mask_indices=token_ind_to_mask)
+                    self.masker.get_masked_string(inp, editor_mask_indices=token_ind_to_mask, **kwargs)
         else:
+            logger.info("In Here II")
             grouped_ind_to_mask, token_ind_to_mask, masked_inp, orig_spans = \
                     self.masker.get_masked_string(inp, grad_pred_idx, **kwargs)
 

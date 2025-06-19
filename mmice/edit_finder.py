@@ -246,7 +246,7 @@ class EditFinder():
                                                           contrast_pred_idx, k=self.beam_width)
         is_multilabel = self.predictor.model.config.problem_type == "multi_label_classification"
         is_label = edit_list.contrast_label in self.labels_to_ints.keys()
-        if is_multilabel and is_label:
+        if is_multilabel and not is_label:
             probs = 1 - probs
             
         input_cands = [input_cands[idx] for idx in highest_indices]
@@ -270,8 +270,10 @@ class EditFinder():
                         (prob, edit_list.counter, input_cand))
 
             label = self.ints_to_labels[pred_idx]
-            
-            if pred_idx == contrast_pred_idx:
+            if is_multilabel and not is_label:
+                label = "NO " + label
+            if (pred_idx == contrast_pred_idx and not is_multilabel) \
+                or (pred_idx == contrast_pred_idx and is_multilabel and prob > .5):
                 found_cand = True
                 # Score minimality because we order edits by minimality scores
                 if edit_evaluator is not None:
@@ -390,14 +392,16 @@ class EditFinder():
         logger.info(f"orig_preds: {orig_preds}")
         # transformers pipeline always return in decreasing order
         orig_pred_label = orig_preds[0]["label"]
+        orig_pred_prob = orig_preds[0]["score"]
         orig_pred_idx = self.labels_to_ints[orig_pred_label]
 
         assert orig_pred_label == str(orig_pred_label)
         # For multilabel classification the contrast label corresponds
         # to the negation of the chosen label
         if self.predictor.model.config.problem_type == "multi_label_classification":
-            contrast_label = "NO " + orig_pred_label if orig_preds[0]["score"] > .5 else orig_pred_label
-            orig_contrast_prob = 1 - orig_preds[0]["score"]
+            orig_pred_label = orig_preds[0]["label"] if orig_pred_prob >= .5 else "NO " + orig_preds[0]["label"]
+            contrast_label = "NO " + orig_preds[0]["label"] if orig_pred_prob >= .5 else orig_preds[0]["label"]
+            orig_contrast_prob = 1 - orig_pred_prob if orig_pred_prob >= .5 else orig_pred_prob
             contrast_pred_idx = orig_pred_idx
             contrast = {'label': contrast_label,
                         'score': orig_contrast_prob,
@@ -445,7 +449,7 @@ class EditFinder():
                 elif self.editor.grad_pred == "contrast":
                     pred_idx = contrast_pred_idx
 
-                sorted_token_indices = self.editor.get_sorted_token_indices(input_cand, pred_idx)
+                sorted_token_indices = self.editor.get_sorted_token_indices(input_cand, pred_idx, orig_pred_prob)
                 
                 if self.search_method == "binary":
                     self.binary_search_edit(edit_list, input_cand, 
