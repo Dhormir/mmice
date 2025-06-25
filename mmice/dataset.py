@@ -130,15 +130,14 @@ class StageOneDataset(Dataset):
                 # Check for only one label_idx
                 map_mask_string = map(mask_string, enumerate(label_idx))
                 masked_outputs = list(map_mask_string)
-                
                 map_format_input = map(format_input,
-                                       zip(masked_outputs[:][0], label_to_use))
+                                       zip([masked_output[0] for masked_output in masked_outputs], label_to_use))
                 
                 masked_strings_ = list(map_format_input)
-                assert all(isinstance(item, str) for item in masked_strings_)
+                assert all(isinstance(item, str) for item in masked_strings_) and len(masked_strings_) == len(labels_to_ints)
                 masked_strings += masked_strings_
-                targets_ = masked_outputs[:][1]
-                assert all(isinstance(item, str) for item in targets_)
+                targets_ = [masked_output[1] for masked_output in masked_outputs]
+                assert all(isinstance(item, str) for item in targets_) and len(targets_) == len(labels_to_ints)
                 targets += targets_
 
                 verbose = True if i % 500 == 0 else False
