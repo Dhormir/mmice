@@ -460,8 +460,6 @@ class GradientMasker(Masker):
         else:
             all_predic_toks =self.predictor.tokenizer.convert_ids_to_tokens(tokenized_editable_seq["input_ids"])
 
-        #logger.info(f"tokenized_editable_seq:\n{tokenized_editable_seq}")
-        #logger.info(f"all_predic_toks:\n{all_predic_toks}")
         # TODO: Does NOT work for RACE
         # If labeled_instance is not supplied, create one
         if labeled_instance is None:
@@ -480,20 +478,15 @@ class GradientMasker(Masker):
         
         # Include only gradient values for editable parts of the inp
         if predictor_tok_end_idx is not None:
-            #logger.info(f"predictor_tok_end_idx:{predictor_tok_end_idx}")
             if predictor_tok_start_idx is not None:
-                #logger.info(f"predictor_tok_start_idx:{predictor_tok_start_idx}")
                 grad_magnitudes = grad_magnitudes[predictor_tok_start_idx:predictor_tok_end_idx]
                 grad_signed = grad_signed[predictor_tok_start_idx:predictor_tok_end_idx]
             else:
                 grad_magnitudes = grad_magnitudes[:predictor_tok_end_idx]
                 grad_signed = grad_signed[:predictor_tok_end_idx]
-        #logger.info(f"grad_signed:\n{grad_signed}\ngrad_magnitudes:\n{grad_magnitudes}")
         
         # Order Predictor tokens from largest to smallest gradient values
         ordered_predic_tok_indices = np.argsort(grad_magnitudes)[::-1]
-        #logger.info(f"type(grad_magnitudes):{type(grad_magnitudes)}")
-        #logger.info(f"np.argsort(grad_magnitudes):\n{np.argsort(grad_magnitudes)}")
         ordered_word_indices_by_grad = [
             self._get_word_positions(tokenized_editable_seq.token_to_chars(idx),
                                      editor_tokenized)[0]
@@ -514,8 +507,7 @@ class GradientMasker(Masker):
                 highest_editor_tok_indices.append(idx)
                 if len(highest_editor_tok_indices) == num_return_toks:
                     break
-        # why is this done?? probably an error
-        # highest_predic_tok_indices = ordered_predic_tok_indices[:num_return_toks]
+
         return highest_editor_tok_indices
 
     def merge_multiple_ranked_lists(self, list_of_list: List[List]):
@@ -562,14 +554,16 @@ class GradientMasker(Masker):
         
         if "pred_value" in kwargs.keys():
             pred_value = kwargs.pop('pred_value')
-            # logger.info(f"pred_idx: {pred_idx}, pred_value: {pred_value}")
 
         kwargs.pop('editor_tokens')
         editor_tokenized = kwargs.pop('editor_tokenized')
         
-        if self.predictor.model.config.problem_type == "multi_label_classification" and isinstance(pred_idx, int):
-            self.sign_direction = 1 if pred_value == 1 else -1
+        is_multilabel = self.predictor.model.config.problem_type == "multi_label_classification" 
+        
+        if "signed" in self.grad_type and is_multilabel and isinstance(pred_idx, int):
+            self.sign_direction = 1 if pred_value >= .5 else -1
+
         editor_mask_indices = self.get_important_editor_tokens(
             editable_seq, pred_idx, editor_tokenized, **kwargs)
-        
+
         return editor_mask_indices

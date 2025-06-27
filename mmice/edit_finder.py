@@ -129,7 +129,7 @@ class EditEvaluator():
         similarity = compute_mauve(p_text=p_text,
                                    q_text=q_text,
                                    max_text_length=self.fluency_tokenizer.model_max_length,
-                                   device_id=1, featurize_model_name="gpt2", batch_size=12,
+                                   device_id=1, featurize_model_name="FacebookAI/xlm-roberta-base", batch_size=12,
                                    verbose=False)
         return 1 - similarity.mauve
 
