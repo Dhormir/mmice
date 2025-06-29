@@ -6,7 +6,8 @@ from .mask_error import MaskError
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
-class Masker():
+
+class Masker:
     """
     Class used to mask inputs for Editors.
     Two subclasses: RandomMasker and GradientMasker
@@ -26,13 +27,13 @@ class Masker():
         self.max_tokens = max_tokens
 
     def _get_mask_indices(self, **kwargs):
-        """ Helper function to get indices of Editor tokens to mask. """
+        """Helper function to get indices of Editor tokens to mask."""
         raise NotImplementedError("Need to implement this in subclass")
 
     def get_all_masked_strings(self, editable_seq):
         """
         Returns a list of masked inputs/targets where each input has one word replaced by a sentinel token.
-        Used for calculating fluency.    
+        Used for calculating fluency.
 
         Args:
             editable_seq (string): editable string sequence
@@ -45,8 +46,16 @@ class Masker():
         for idx, _ in enumerate(editor_tokenized_input.tokens()[:-1]):
             token_span = editor_tokenized_input.token_to_chars(idx)
             token_start, token_end = token_span.start, token_span.end
-            masked_seq = editable_seq[:token_start] + self._get_sentinel_token(0) + editable_seq[token_end:]
-            label = self._get_sentinel_token(0) + editable_seq[token_start:token_end] + self._get_sentinel_token(1)
+            masked_seq = (
+                editable_seq[:token_start]
+                + self._get_sentinel_token(0)
+                + editable_seq[token_end:]
+            )
+            label = (
+                self._get_sentinel_token(0)
+                + editable_seq[token_start:token_end]
+                + self._get_sentinel_token(1)
+            )
             inputs_targets.append((masked_seq, label))
 
         masked_seqs, labels = zip(*inputs_targets)
@@ -67,7 +76,7 @@ class Masker():
         # for some reason on current version needs a space to be recognized
         # its seems to be a current config issue on model page.
         # Also we are assuming you are not loading the tokenizer from a path
-        #if 'umt5' not in self.editor_tok_wrapper.name_or_path and 'mt5-' in self.editor_tok_wrapper.name_or_path:
+        # if 'umt5' not in self.editor_tok_wrapper.name_or_path and 'mt5-' in self.editor_tok_wrapper.name_or_path:
         #    return " <extra_id_" + str(idx) + ">"
         return "<extra_id_" + str(idx) + ">"
 
@@ -97,15 +106,18 @@ class Masker():
             list: list of token indices to mask
         """
         if editor_mask_indices is None:
-            editor_mask_indices = self._get_mask_indices(editable_seq=editable_seq, **kwargs)
+            editor_mask_indices = self._get_mask_indices(
+                editable_seq=editable_seq, **kwargs
+            )
         # Removes [CLS] token index
         if "bert" in self.editor_tok_wrapper.name_or_path and 0 in editor_mask_indices:
             editor_mask_indices.remove(0)
 
         new_editor_mask_indices = set(editor_mask_indices)
         grouped_editor_mask_indices = [
-            list(group) for group in
-            mit.consecutive_groups(sorted(new_editor_mask_indices))]
+            list(group)
+            for group in mit.consecutive_groups(sorted(new_editor_mask_indices))
+        ]
 
         if len(grouped_editor_mask_indices) > 27:
             for t_idx in editor_mask_indices:
@@ -113,8 +125,9 @@ class Masker():
                     new_editor_mask_indices.add(t_idx + 1)
 
         grouped_editor_mask_indices = [
-            list(group) for group in
-            mit.consecutive_groups(sorted(new_editor_mask_indices))]
+            list(group)
+            for group in mit.consecutive_groups(sorted(new_editor_mask_indices))
+        ]
 
         if len(grouped_editor_mask_indices) > 27:
             for t_idx in editor_mask_indices:
@@ -124,14 +137,14 @@ class Masker():
 
         new_editor_mask_indices = list(new_editor_mask_indices)
         grouped_editor_mask_indices = [
-            list(group) for group in
-            mit.consecutive_groups(sorted(new_editor_mask_indices))]
+            list(group)
+            for group in mit.consecutive_groups(sorted(new_editor_mask_indices))
+        ]
         # Mask max of 100 spans
         grouped_editor_mask_indices = grouped_editor_mask_indices[:99]
         return grouped_editor_mask_indices
 
-    def get_masked_string(self, editable_seq,
-                          editor_mask_indices=None, **kwargs):
+    def get_masked_string(self, editable_seq, editor_mask_indices=None, **kwargs):
         """
         Gets masked string masking tokens w highest predictor gradients.
         Requires mapping predictor tokens to Editor tokens because edits are made on Editor tokens.
@@ -149,19 +162,24 @@ class Masker():
             masked_seg: masked editable_seq
             label: label string
         """
-        editor_tokenized = self.editor_tok_wrapper(editable_seq,
-                                                   truncation=True,
-                                                   max_length=self.max_tokens)
-        if  self.editor_tok_wrapper.is_fast:
+        editor_tokenized = self.editor_tok_wrapper(
+            editable_seq, truncation=True, max_length=self.max_tokens
+        )
+        if self.editor_tok_wrapper.is_fast:
             editor_tokens = editor_tokenized.tokens()
         else:
-            editor_tokens = self.editor_tok_wrapper.convert_ids_to_tokens(editor_tokenized["input_ids"])
+            editor_tokens = self.editor_tok_wrapper.convert_ids_to_tokens(
+                editor_tokenized["input_ids"]
+            )
 
-        grpd_editor_mask_indices = self._get_grouped_mask_indices(editable_seq, editor_mask_indices,
-                                                                  editor_tokenized=editor_tokenized,
-                                                                  editor_tokens=editor_tokens,
-                                                                  **kwargs)
-        
+        grpd_editor_mask_indices = self._get_grouped_mask_indices(
+            editable_seq,
+            editor_mask_indices,
+            editor_tokenized=editor_tokenized,
+            editor_tokens=editor_tokens,
+            **kwargs,
+        )
+
         span_idx = len(grpd_editor_mask_indices) - 1
         label = self._get_sentinel_token(len(grpd_editor_mask_indices))
         masked_seg = editable_seq
@@ -175,15 +193,26 @@ class Masker():
             end_token_idx = span[-1]
 
             # If last span tok is last t5 tok, heuristically set char end idx
-            if span_char_end is None and end_token_idx == len(editor_tokenized.input_ids) - 1:
+            if (
+                span_char_end is None
+                and end_token_idx == len(editor_tokenized.input_ids) - 1
+            ):
                 span_char_end = span_char_start + 1
 
             if span_char_end <= span_char_start:
                 logger.info("Esta pasando algo raro!!")
                 raise MaskError
             if "t5" in self.editor_tok_wrapper.name_or_path:
-                label = self._get_sentinel_token(span_idx) + masked_seg[span_char_start:span_char_end] + label
-                masked_seg = masked_seg[:span_char_start] + self._get_sentinel_token(span_idx) + masked_seg[span_char_end:]
+                label = (
+                    self._get_sentinel_token(span_idx)
+                    + masked_seg[span_char_start:span_char_end]
+                    + label
+                )
+                masked_seg = (
+                    masked_seg[:span_char_start]
+                    + self._get_sentinel_token(span_idx)
+                    + masked_seg[span_char_end:]
+                )
             elif "bert" in self.editor_tok_wrapper.name_or_path:
                 masked_seg = self.mask_bert_string(span, masked_seg, editor_tokenized)
             else:
@@ -191,12 +220,16 @@ class Masker():
             span_idx -= 1
         if "bert" in self.editor_tok_wrapper.name_or_path:
             label = editable_seq
-            
+
         return grpd_editor_mask_indices, editor_mask_indices, masked_seg, label
 
     def mask_bert_string(self, span, editable_seg, editor_tokenized):
         masked_seg = editable_seg
         for token in span[::-1]:
             span_char = editor_tokenized.token_to_chars(token)
-            masked_seg = masked_seg[:span_char.start] + self._get_mask_token() + masked_seg[span_char.end:]
+            masked_seg = (
+                masked_seg[: span_char.start]
+                + self._get_mask_token()
+                + masked_seg[span_char.end :]
+            )
         return masked_seg

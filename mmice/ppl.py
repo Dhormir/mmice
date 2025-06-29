@@ -1,4 +1,3 @@
-
 import datasets
 import numpy as np
 import torch
@@ -37,7 +36,11 @@ class Perplexity(evaluate.Metric):
         print(kwargs)
         super(evaluate.Metric, self).__init__()
         if device is not None:
-            assert device in ["gpu", "cpu", "cuda"], "device should be either gpu or cpu."
+            assert device in [
+                "gpu",
+                "cpu",
+                "cuda",
+            ], "device should be either gpu or cpu."
             if device == "gpu" or device == "cuda":
                 self.device = "cuda"
             else:
@@ -45,13 +48,14 @@ class Perplexity(evaluate.Metric):
         else:
             self.device = "cuda" if torch.cuda.is_available() else "cpu"
         print(kwargs)
-        self.model = AutoModelForCausalLM.from_pretrained(model_id, *kwargs).to(self.device)
-        if 'llama' in model_id or 'alpaca' in model_id:
+        self.model = AutoModelForCausalLM.from_pretrained(model_id, *kwargs).to(
+            self.device
+        )
+        if "llama" in model_id or "alpaca" in model_id:
             self.tokenizer = LlamaTokenizer.from_pretrained(model_id)
         else:
             self.tokenizer = AutoTokenizer.from_pretrained(model_id)
 
-    
     def _info(self):
         return evaluate.MetricInfo(
             module_type="metric",
@@ -66,10 +70,18 @@ class Perplexity(evaluate.Metric):
             reference_urls=["https://huggingface.co/docs/transformers/perplexity"],
         )
 
-    def _compute(self, predictions, batch_size: int=16, add_start_token: bool=True, max_length=None):
+    def _compute(
+        self,
+        predictions,
+        batch_size: int = 16,
+        add_start_token: bool = True,
+        max_length=None,
+    ):
         # special token to also be the padding token
         if self.tokenizer.pad_token is None and batch_size > 1:
-            existing_special_tokens = list(self.tokenizer.special_tokens_map_extended.values())
+            existing_special_tokens = list(
+                self.tokenizer.special_tokens_map_extended.values()
+            )
             # check that the model already has at least one special token defined
             assert (
                 len(existing_special_tokens) > 0
@@ -101,7 +113,9 @@ class Perplexity(evaluate.Metric):
 
         # check that each input is long enough:
         if add_start_token:
-            assert torch.all(torch.ge(attn_masks.sum(1), 1)), "Each input text must be at least one token long."
+            assert torch.all(
+                torch.ge(attn_masks.sum(1), 1)
+            ), "Each input text must be at least one token long."
         else:
             assert torch.all(
                 torch.ge(attn_masks.sum(1), 2)
@@ -116,10 +130,18 @@ class Perplexity(evaluate.Metric):
             attn_mask = attn_masks[start_index:end_index]
 
             if add_start_token:
-                bos_tokens_tensor = torch.tensor([[self.tokenizer.bos_token_id]] * encoded_batch.size(dim=0)).to(self.device)
+                bos_tokens_tensor = torch.tensor(
+                    [[self.tokenizer.bos_token_id]] * encoded_batch.size(dim=0)
+                ).to(self.device)
                 encoded_batch = torch.cat([bos_tokens_tensor, encoded_batch], dim=1)
                 attn_mask = torch.cat(
-                    [torch.ones(bos_tokens_tensor.size(), dtype=torch.int64).to(self.device), attn_mask], dim=1
+                    [
+                        torch.ones(bos_tokens_tensor.size(), dtype=torch.int64).to(
+                            self.device
+                        ),
+                        attn_mask,
+                    ],
+                    dim=1,
                 )
 
             labels = encoded_batch
@@ -132,7 +154,10 @@ class Perplexity(evaluate.Metric):
             shift_attention_mask_batch = attn_mask[..., 1:].contiguous()
 
             perplexity_batch = torch.exp(
-                (loss_fct(shift_logits.transpose(1, 2), shift_labels) * shift_attention_mask_batch).sum(1)
+                (
+                    loss_fct(shift_logits.transpose(1, 2), shift_labels)
+                    * shift_attention_mask_batch
+                ).sum(1)
                 / shift_attention_mask_batch.sum(1)
             )
 
