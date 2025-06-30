@@ -11,8 +11,7 @@ from mmice.stage_one import run_train_editor
 from mmice.utils import get_args, get_dataset_reader, get_device
 
 
-if __name__ == "__main__":
-
+def main():
     args = get_args("stage1")
     predictor = pipeline(
         "text-classification",
@@ -26,3 +25,7 @@ if __name__ == "__main__":
     dataset_reader = get_dataset_reader(args.meta.task)
     with logging_redirect_tqdm():
         run_train_editor(predictor, dataset_reader, args)
+
+
+if __name__ == "__main__":
+    main()

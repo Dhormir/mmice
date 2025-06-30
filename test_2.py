@@ -9,8 +9,11 @@ from mmice.stage_two import run_edit_test
 from mmice.utils import get_args
 
 
-if __name__ == "__main__":
-
+def main():
     args = get_args("stage2")
     with logging_redirect_tqdm():
         run_edit_test(args)
+
+
+if __name__ == "__main__":
+    main()
