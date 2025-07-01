@@ -15,7 +15,7 @@ def main():
     args = get_args("stage1")
     predictor = pipeline(
         "text-classification",
-        model=f"trained_predictors/{args.meta.task}/model",
+        model=f"{args.meta.predictors_dir}/{args.meta.task}/model",
         device=get_device(),
         max_length=512,
         padding=True,

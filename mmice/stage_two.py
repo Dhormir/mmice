@@ -90,7 +90,7 @@ def load_models(args):
     """Loads Predictor and Editor by task and other args"""
 
     logger.info("Loading models...")
-    predictor = load_predictor(args.meta.task)
+    predictor = load_predictor(args.meta.task, args.meta.predictors_dir)
     editor_path = check_editor_path(args.meta.editor_path)
     editor_tokenizer, editor_model = load_base_editor(
         model_name=args.model.model_name,

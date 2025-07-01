@@ -74,6 +74,11 @@ def get_shared_parsers():
         "-results_dir", default="results", help="Results dir. Where to store results."
     )
     meta_parser.add_argument(
+        "-predictors_dir",
+        default="trained_predictors",
+        help="predictors dir. Where to load models to be explained.",
+    )
+    meta_parser.add_argument(
         "-lang",
         default="en",
         help="Task language. Indicates the language of the task.",
