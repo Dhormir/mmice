@@ -71,7 +71,17 @@ def get_shared_parsers():
         choices=["race", "imdb", "newsgroups", "chileanhate", "42k_hcuch"],
     )
     meta_parser.add_argument(
+        "-data_dir",
+        default="data",
+        help="Data dir. Where the data folder is located in order to properly load the task data.",
+    )
+    meta_parser.add_argument(
         "-results_dir", default="results", help="Results dir. Where to store results."
+    )
+    meta_parser.add_argument(
+        "-predictors_dir",
+        default="trained_predictors",
+        help="predictors dir. Where to load models to be explained.",
     )
     meta_parser.add_argument(
         "-lang",
@@ -305,7 +315,7 @@ def clean_text(
     return example
 
 
-def get_dataset_reader(task_name, split="train"):
+def get_dataset_reader(task_name, split="train", data_dir="data"):
     task_options = ["imdb", "race", "newsgroups", "chileanhate", "42k_hcuch"]
     if task_name not in task_options:
         raise NotImplementedError(
@@ -324,14 +334,14 @@ def get_dataset_reader(task_name, split="train"):
         )
     # Example for new tasks
     elif task_name == "chileanhate":
-        task_data_dir = os.path.join("data", task_name)
+        task_data_dir = os.path.join(data_dir, task_name)
         data_files = [
             os.path.join(task_data_dir, "tweets_train.csv"),
             os.path.join(task_data_dir, "tweets_test.csv"),
         ]
         return load_chilean_hate(data_files=data_files)[split].map(clean_text)
     elif task_name == "42k_hcuch":
-        task_data_dir = os.path.join("data", task_name)
+        task_data_dir = os.path.join(data_dir, task_name)
         data_files = [
             os.path.join(task_data_dir, "labeled_data_3-label_train.csv"),
             os.path.join(task_data_dir, "labeled_data_3-label_test.csv"),
