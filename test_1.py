@@ -22,7 +22,7 @@ def main():
         truncation=True,
         top_k=None,
     )
-    dataset_reader = get_dataset_reader(args.meta.task, args.meta.data_dir)
+    dataset_reader = get_dataset_reader(args.meta.task, data_dir=args.meta.data_dir)
     with logging_redirect_tqdm():
         run_train_editor(predictor, dataset_reader, args)
 
