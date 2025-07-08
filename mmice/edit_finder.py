@@ -157,14 +157,16 @@ class EditEvaluator:
         return 1 - np.abs(output.item())
 
     def score_minimality_mauve(self, orig_sent: str, edited_sent: str, normalized=True):
-        p_text = (
-            [orig_sent] + orig_sent.split() + self.fluency_tokenizer.tokenize(orig_sent)
-        )
+        p_text = [
+            orig_sent
+        ] + orig_sent.split()  # + self.fluency_tokenizer.tokenize(orig_sent)
         q_text = (
             [edited_sent]
             + edited_sent.split()
-            + self.fluency_tokenizer.tokenize(edited_sent)
+            # + self.fluency_tokenizer.tokenize(edited_sent)
         )
+        # logger.info(f"p_text:\n{p_text}")
+        # logger.info(f"q_text:\n{q_text}")
         similarity = compute_mauve(
             p_text=p_text,
             q_text=q_text,
