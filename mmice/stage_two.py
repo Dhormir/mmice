@@ -199,6 +199,7 @@ def run_edit_test(args):
         if args.misc.n_samples != 0
         else dr.shuffle(seed=42)
     )
+
     edit_evaluator = EditEvaluator()
     edit_finder = EditFinder(
         predictor,

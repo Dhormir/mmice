@@ -123,9 +123,6 @@ class Editor:
             editor_tokenized,
             num_return_toks=len(editor_tokenized.input_ids[0]),
         )
-        if is_multilabel and "signed" not in self.masker.grad_type:
-            logger.info("Inverting sorting")
-            sorted_token_indices = sorted_token_indices[::-1]
 
         return sorted_token_indices
 

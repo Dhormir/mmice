@@ -635,12 +635,4 @@ class GradientMasker(Masker):
             editable_seq, pred_idx, editor_tokenized, **kwargs
         )
 
-        if (
-            "signed" not in self.grad_type
-            and is_multilabel
-            and isinstance(pred_idx, int)
-            and pred_value <= 0.5
-        ):
-            editor_mask_indices = editor_mask_indices[::-1]
-
         return editor_mask_indices
