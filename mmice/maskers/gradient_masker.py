@@ -630,6 +630,7 @@ class GradientMasker(Masker):
 
         if "signed" in self.grad_type and is_multilabel and isinstance(pred_idx, int):
             self.sign_direction = 1 if pred_value >= 0.5 else -1
+            logger.info("Changing Direction")
 
         editor_mask_indices = self.get_important_editor_tokens(
             editable_seq, pred_idx, editor_tokenized, **kwargs

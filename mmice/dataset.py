@@ -149,11 +149,13 @@ class StageOneDataset(Dataset):
                     else label_to_use
                 )
                 # If these throws error something is really wrong with the dataset
-                label_to_use = (
-                    label_to_use
-                    if label_to_use in labels_to_ints.keys()
-                    else predictor.model.config.id2label[label_to_use]
-                )
+                label_to_use = [
+                    (
+                        label_to_use
+                        if label_to_use in labels_to_ints.keys()
+                        else predictor.model.config.id2label[label_to_use]
+                    )
+                ]
 
             predictor_tokenized = get_predictor_tokenized(predictor, orig_inp)
             predictor_tok_end_idx = predictor_tokenized.input_ids.size(dim=1)
@@ -167,13 +169,21 @@ class StageOneDataset(Dataset):
                     pred_value=pred[1],
                     predictor_tok_end_idx=predictor_tok_end_idx,
                 )[2:]
-                format_input = lambda map: format_classif_input(
-                    map[0], map[1], self.lang
+                format_input = lambda values: format_classif_input(
+                    values[0], values[1], self.lang
                 )
 
                 # ToDO
                 # Check for only one label_idx
-                map_mask_string = map(mask_string, enumerate(label_idx))
+                map_mask_string = map(
+                    mask_string,
+                    (
+                        enumerate(label_idx)
+                        if predictor.model.config.problem_type
+                        == "multi_label_classification"
+                        else [(label_idx, None)]
+                    ),
+                )
                 masked_outputs = list(map_mask_string)
                 map_format_input = map(
                     format_input,
@@ -184,14 +194,15 @@ class StageOneDataset(Dataset):
                 )
 
                 masked_strings_ = list(map_format_input)
-                assert all(isinstance(item, str) for item in masked_strings_) and len(
-                    masked_strings_
-                ) == len(labels_to_ints)
+                assert all(isinstance(item, str) for item in masked_strings_)
+                if predictor.model.config.problem_type == "multi_label_classification":
+                    assert len(masked_strings_) == len(labels_to_ints)
                 masked_strings += masked_strings_
+
                 targets_ = [masked_output[1] for masked_output in masked_outputs]
-                assert all(isinstance(item, str) for item in targets_) and len(
-                    targets_
-                ) == len(labels_to_ints)
+                assert all(isinstance(item, str) for item in targets_)
+                if predictor.model.config.problem_type == "multi_label_classification":
+                    assert len(targets_) == len(labels_to_ints)
                 targets += targets_
 
                 verbose = True if i % 500 == 0 else False
