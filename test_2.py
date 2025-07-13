@@ -1,8 +1,10 @@
 from tqdm.contrib.logging import logging_redirect_tqdm
+from pathlib import Path
 import os
 
+
 # Set your desired cache directory
-os.environ["HF_HOME"] = "D:\Repositories\multilingual_mice\.cache"
+os.environ["HF_HOME"] = str(Path.cwd() / ".cache")
 
 # Local imports
 from mmice.stage_two import run_edit_test

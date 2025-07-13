@@ -1,10 +1,10 @@
 from tqdm.contrib.logging import logging_redirect_tqdm
 from transformers import pipeline
-
+from pathlib import Path
 import os
 
-# Set your desired cache directory
-os.environ["HF_HOME"] = "D:\Repositories\multilingual_mice\.cache"
+# Set cache to current repo
+os.environ["HF_HOME"] = str(Path.cwd() / ".cache")
 
 # Local imports
 from mmice.stage_one import run_train_editor
