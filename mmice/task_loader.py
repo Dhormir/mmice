@@ -13,8 +13,7 @@ def load_chilean_hate(data_files=None, column_names=["text", "Odio"]):
 
     data = Dataset.from_pandas(df).remove_columns(["__index_level_0__"])
     data = data.rename_column("Odio", "label")
-    data = data.shuffle(42)
-    return data.train_test_split(train_size=0.89)
+    return data.train_test_split(train_size=0.89, seed=42)
 
 
 def load_42k_hcuch(
@@ -48,9 +47,8 @@ def load_42k_hcuch(
 
     data = data.cast(new_features)
     data = data.remove_columns(["condensacion", "nodulos", "quistes"])
-    data = data.shuffle(42)
     # For multilabel models we will make it focus only on the highest probability label
-    return data.train_test_split(train_size=0.75)
+    return data.train_test_split(train_size=0.75, seed=42)
 
 
 def load_semeval_hate(data_files=None, column_names=["text", "HS"]):
@@ -61,4 +59,4 @@ def load_semeval_hate(data_files=None, column_names=["text", "HS"]):
     data = Dataset.from_pandas(df).remove_columns(["__index_level_0__"])
     data = data.rename_column("HS", "label")
     data = data.shuffle(42)
-    return data.train_test_split(train_size=0.75)
+    return data.train_test_split(train_size=0.75, seed=42)
