@@ -247,6 +247,8 @@ def run_edit_test(args):
             start_time = time.time()
             error = False
             edited_list = None
+            sorted_list = []
+
             try:
                 edited_list = edit_finder.minimally_edit(
                     inp,
@@ -260,7 +262,6 @@ def run_edit_test(args):
             except Exception as e:
                 logger.exception(f"ERROR: Finding edits:\n{e}")
                 error = True
-                sorted_list = []
 
             end_time = time.time()
             duration = end_time - start_time
@@ -287,20 +288,21 @@ def run_edit_test(args):
                     ]
                 )
                 csv_file.flush()
+                os.fsync(csv_file.fileno())
 
             if sorted_list == []:
                 writer.writerow(
                     [
                         i,
                         0,
-                        edited_list.orig_label,
+                        edited_list.orig_label if edited_list else None,
                         None,
-                        edited_list.contrast_label,
-                        edited_list.orig_contrast_prob,
+                        edited_list.contrast_label if edited_list else None,
+                        edited_list.orig_contrast_prob if edited_list else None,
                         None,
-                        edited_list.orig_input,
+                        edited_list.orig_input if edited_list else inp,
                         None,
-                        edited_list.orig_editable_seg,
+                        edited_list.orig_editable_seg if edited_list else None,
                         None,
                         None,
                         None,
@@ -310,5 +312,6 @@ def run_edit_test(args):
                     ]
                 )
                 csv_file.flush()
+                os.fsync(csv_file.fileno())
     csv_file.close()
     logger.info("Successful Execution!!")
