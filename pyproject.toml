@@ -76,10 +76,13 @@ name = "pytorch-cu128"
 url = "https://download.pytorch.org/whl/cu128"
 explicit = true
 
+[tool.pytest.ini_options]
+pythonpath = ["."]
 
 
 [dependency-groups]
 dev = [
     "black>=25.1.0",
     "pre-commit>=4.2.0",
+    "pytest>=9.0.2",
 ]
