@@ -6,12 +6,7 @@ import logging
 
 # Local imports
 from .maskers.mask_error import MaskError
-from .utils import (
-    get_predictor_tokenized,
-    format_classif_input,
-    wrap_text,
-    format_multiple_choice_input,
-)
+from .utils import get_predictor_tokenized, format_classif_input, wrap_text, format_multiple_choice_input
 
 
 logger = logging.getLogger(__name__)
@@ -20,14 +15,12 @@ logger.setLevel(logging.INFO)
 # Random Number Generator
 RNG = np.random.default_rng(seed=42)
 
-
 class StageOneDataset(Dataset):
-    """Dataset for training Editor models in Stage One. Creates masked inputs
-    from task training inputs. Inherits from torch.utils.data.Dataset."""
+    """ Dataset for training Editor models in Stage One. Creates masked inputs 
+    from task training inputs. Inherits from torch.utils.data.Dataset. """
 
-    def __init__(
-        self, tokenizer, max_length=512, masked_strings=None, targets=None, lang="en"
-    ):
+
+    def __init__(self, tokenizer, max_length=512, masked_strings=None, targets=None, lang='en'):
         self.tokenizer = tokenizer
         self.masked_strings = masked_strings
         self.targets = targets
