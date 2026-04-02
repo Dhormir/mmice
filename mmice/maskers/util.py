@@ -64,7 +64,9 @@ def get_device_of(tensor: torch.Tensor) -> int:
         return tensor.get_device()
 
 
-def flatten_and_batch_shift_indices(indices: torch.Tensor, sequence_length: int) -> torch.Tensor:
+def flatten_and_batch_shift_indices(
+    indices: torch.Tensor, sequence_length: int
+) -> torch.Tensor:
     """
     This is a subroutine for [`batched_index_select`](./util.md#batched_index_select).
     The given `indices` of size `(batch_size, d_1, ..., d_n)` indexes into dimension 2 of a
@@ -98,7 +100,9 @@ def flatten_and_batch_shift_indices(indices: torch.Tensor, sequence_length: int)
         raise ConfigurationError(
             f"All elements in indices should be in range (0, {sequence_length - 1})"
         )
-    offsets = get_range_vector(indices.size(0), get_device_of(indices)) * sequence_length
+    offsets = (
+        get_range_vector(indices.size(0), get_device_of(indices)) * sequence_length
+    )
     for _ in range(len(indices.size()) - 1):
         offsets = offsets.unsqueeze(1)
 
@@ -168,7 +172,6 @@ def batched_index_select(
     return selected_targets
 
 
-
 def batched_span_select(target: torch.Tensor, spans: torch.LongTensor) -> torch.Tensor:
     """
     The given `spans` of size `(batch_size, num_spans, 2)` indexes into the sequence
@@ -210,8 +213,9 @@ def batched_span_select(target: torch.Tensor, spans: torch.LongTensor) -> torch.
     max_batch_span_width = span_widths.max().item() + 1
 
     # Shape: (1, 1, max_batch_span_width)
-    max_span_range_indices = get_range_vector(max_batch_span_width,
-                                              get_device_of(target)).view(1, 1, -1)
+    max_span_range_indices = get_range_vector(
+        max_batch_span_width, get_device_of(target)
+    ).view(1, 1, -1)
     # Shape: (batch_size, num_spans, max_batch_span_width)
     # This is a broadcasted comparison - for each span we are considering,
     # we are creating a range vector of size max_span_width, but masking values
@@ -225,7 +229,9 @@ def batched_span_select(target: torch.Tensor, spans: torch.LongTensor) -> torch.
     # We also don't want to include span indices which greater than the sequence_length,
     # which happens because some spans near the end of the sequence
     # have a start index + max_batch_span_width > sequence_length, so we add this to the mask here.
-    span_mask = span_mask & (raw_span_indices < target.size(1)) & (0 <= raw_span_indices)
+    span_mask = (
+        span_mask & (raw_span_indices < target.size(1)) & (0 <= raw_span_indices)
+    )
     span_indices = raw_span_indices * span_mask
 
     # Shape: (batch_size, num_spans, max_batch_span_width, embedding_dim)

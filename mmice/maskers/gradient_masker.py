@@ -2,6 +2,8 @@ import math
 import numpy as np
 from typing import List, Dict, Any
 import logging
+import random
+from collections import deque
 
 from torch import cuda, clamp_min
 from torch import Tensor
@@ -18,7 +20,7 @@ logger.setLevel(logging.INFO)
 
 
 class GradientMasker(Masker):
-    """ Masks spans based on gradients of Predictor wrt. given predicted label.
+    """Masks spans based on gradients of Predictor wrt. given predicted label.
 
     mask_frac: float
         Fraction of input tokens to mask.
@@ -54,9 +56,16 @@ class GradientMasker(Masker):
         Only used when grad_type is one of integrated types.
     """
 
-    def __init__(self, mask_frac, editor_tok_wrapper, predictor, max_tokens,
-                 grad_type="normal_l2", sign_direction=None,
-                 num_integrated_grad_steps=10):
+    def __init__(
+        self,
+        mask_frac,
+        editor_tok_wrapper,
+        predictor,
+        max_tokens,
+        grad_type="normal_l2",
+        sign_direction=None,
+        num_integrated_grad_steps=10,
+    ):
         super().__init__(mask_frac, editor_tok_wrapper, max_tokens)
 
         self.predictor = predictor
@@ -65,7 +74,7 @@ class GradientMasker(Masker):
         self.sign_direction = sign_direction
         self._token_offsets: List[Tensor] = []
 
-        if ("signed" in self.grad_type and sign_direction is None):
+        if "signed" in self.grad_type and sign_direction is None:
             error_msg = "To calculate a signed gradient value, need to specify sign direction but got None for sign_direction"
             raise ValueError(error_msg)
 
@@ -133,8 +142,8 @@ class GradientMasker(Masker):
         return hooks
 
     def _get_gradients_by_prob(self, instance, pred_idx):
-        """ Helper function to get gradient values of predicted logit
-        Largely copied from Predictor class of AllenNLP """
+        """Helper function to get gradient values of predicted logit
+        Largely copied from Predictor class of AllenNLP"""
         instances = instance
         original_param_name_to_requires_grad_dict = {}
         for param_name, param in self.predictor.model.named_parameters():
@@ -145,12 +154,16 @@ class GradientMasker(Masker):
             param.requires_grad = True
 
         embedding_gradients: list[Tensor] = []
-        hooks: list[RemovableHandle] = self._register_embedding_gradient_hooks(self.predictor.model, embedding_gradients)
+        hooks: list[RemovableHandle] = self._register_embedding_gradient_hooks(
+            self.predictor.model, embedding_gradients
+        )
 
-        tokenized_instances = self.predictor.tokenizer(instances['sentence'],
-                                                       truncation=True,
-                                                       max_length=self.predictor.tokenizer.model_max_length,
-                                                       return_tensors="pt").to(self.predictor.device)
+        tokenized_instances = self.predictor.tokenizer(
+            instances["sentence"],
+            truncation=True,
+            max_length=self.predictor.tokenizer.model_max_length,
+            return_tensors="pt",
+        ).to(self.predictor.device)
         with backends.cudnn.flags(enabled=True):
             outputs = self.predictor.model(**tokenized_instances)
             # Differs here
@@ -174,43 +187,52 @@ class GradientMasker(Masker):
         return grad_dict, outputs
 
     def _get_word_positions(self, predic_tok_span, editor_tokenized):
-        """ Helper function to map from (sub)tokens of Predictor to
+        """Helper function to map from (sub)tokens of Predictor to
         token indices of Editor tokenizer. Assumes the tokens are in order.
         Raises MaskError if tokens cannot be mapped
             This sometimes happens due to inconsistencies in way text is
-            tokenized by different tokenizers. """
+            tokenized by different tokenizers."""
         return_word_idx = None
         # We determine predictor token position in the editable_sequence
         predic_tok_start = predic_tok_span.start
         predic_tok_end = predic_tok_span.end
-        
+
         if self.editor_tok_wrapper.is_fast:
             editor_tokens = editor_tokenized.tokens()
         else:
-            editor_tokens = self.editor_tok_wrapper.convert_ids_to_tokens(editor_tokenized["input_ids"])
-        
+            editor_tokens = self.editor_tok_wrapper.convert_ids_to_tokens(
+                editor_tokenized["input_ids"]
+            )
+
         if predic_tok_start is None or predic_tok_end is None:
-           return [], [], []
+            return [], [], []
 
         # Why use Try except when a simple *for* *break* should suffice
-        class Found(Exception): pass
+        class Found(Exception):
+            pass
+
         try:
             for word_idx, word_token in reversed(list(enumerate(editor_tokens))):
-                # this is not optimized probably change it so it doesnt need the editable sequence and tokenize in a 
+                # this is not optimized probably change it so it doesnt need the editable sequence and tokenize in a
                 # previous step instead of perfomer it every time
                 if self.editor_tok_wrapper.is_fast:
                     word_token_span = editor_tokenized.token_to_chars(word_idx)
-                    
+
                     if word_token_span is None:
                         continue
                     # Ensure predic_tok start >= start of last Editor tok
-                    if word_idx == len(editor_tokens) - 1 and predic_tok_start >= word_token_span.start:
+                    if (
+                        word_idx == len(editor_tokens) - 1
+                        and predic_tok_start >= word_token_span.start
+                    ):
                         return_word_idx = word_idx
                         raise Found
                     # For all other Editor toks, ensure predic_tok start
                     # >= Editor tok start and < next Editor tok start
                     elif predic_tok_start >= word_token_span.start:
-                        for cand_idx, cand_token in enumerate(editor_tokens[word_idx + 1:]):
+                        for cand_idx, cand_token in enumerate(
+                            editor_tokens[word_idx + 1 :]
+                        ):
                             cand_idx += word_idx
                             cand_token_span = editor_tokenized.token_to_chars(cand_idx)
 
@@ -220,19 +242,24 @@ class GradientMasker(Masker):
                                 return_word_idx = word_idx
                                 raise Found
                 else:
-                    word_token_span = get_token_char_span(editor_tokenized,
-                                                           self.editor_tok_wrapper,
-                                                           word_idx)
+                    word_token_span = get_token_char_span(
+                        editor_tokenized, self.editor_tok_wrapper, word_idx
+                    )
                     if word_token_span[0] is None:
                         continue
                     # Ensure predic_tok start >= start of last Editor tok
-                    if word_idx == len(editor_tokens) - 1 and predic_tok_start >= word_token_span[0]:
+                    if (
+                        word_idx == len(editor_tokens) - 1
+                        and predic_tok_start >= word_token_span[0]
+                    ):
                         return_word_idx = word_idx
                         raise Found
                     # For all other Editor toks, ensure predic_tok start
                     # >= Editor tok start and < next Editor tok start
                     elif predic_tok_start >= word_token_span[0]:
-                        for cand_idx, cand_token in enumerate(editor_tokens[word_idx + 1:]):
+                        for cand_idx, cand_token in enumerate(
+                            editor_tokens[word_idx + 1 :]
+                        ):
                             cand_idx += word_idx
                             cand_token_span = editor_tokenized.token_to_chars(cand_idx)
 
@@ -269,26 +296,33 @@ class GradientMasker(Masker):
                 return_ends.append(cand_token_span.end)
 
             if predic_tok_start < editor_token_span.start:
-                print('MaskError: I')
+                print("MaskError: I")
                 raise MaskError
 
             # Sometimes BERT tokenizers add extra tokens if spaces at end
             last_editor_token_span = editor_tokenized.token_to_chars(last_idx)
-            if last_idx == len(editor_tokens) - 1 and predic_tok_end > last_editor_token_span.end:
-                print(f'predic_tok_end: {predic_tok_end}')
-                print(f'last_editor_token_span.end: {last_editor_token_span.end}')
-                print('MaskError: II')
+            if (
+                last_idx == len(editor_tokens) - 1
+                and predic_tok_end > last_editor_token_span.end
+            ):
+                print(f"predic_tok_end: {predic_tok_end}")
+                print(f"last_editor_token_span.end: {last_editor_token_span.end}")
+                print("MaskError: II")
                 raise MaskError
 
             return return_indices, return_starts, return_ends
 
         return_editor_token_span = editor_tokenized.token_to_chars(return_word_idx)
-        return_tuple = ([return_word_idx], [return_editor_token_span.start], [return_editor_token_span.end])
+        return_tuple = (
+            [return_word_idx],
+            [return_editor_token_span.start],
+            [return_editor_token_span.end],
+        )
         return return_tuple
 
     # Copied from AllenNLP integrated gradient
     def _integrated_register_forward_hook(self, alpha, embeddings_list):
-        """ Helper function for integrated gradients """
+        """Helper function for integrated gradients"""
 
         def forward_hook(module, inputs, output):
             if alpha == 0:
@@ -302,7 +336,7 @@ class GradientMasker(Masker):
 
     # Copied from AllenNLP integrated gradient
     def _get_integrated_gradients(self, instance, pred_idx, steps):
-        """ Helper function for integrated gradients """
+        """Helper function for integrated gradients"""
 
         ig_grads: Dict[str, Any] = {}
 
@@ -312,8 +346,7 @@ class GradientMasker(Masker):
         # Exclude the endpoint because we do a left point integral approx
         for alpha in np.linspace(0, 1.0, num=steps, endpoint=False):
             # Hook for modifying embedding value
-            handle = self._integrated_register_forward_hook(
-                    alpha, embeddings_list)
+            handle = self._integrated_register_forward_hook(alpha, embeddings_list)
 
             grads = self._get_gradients_by_prob(instance, pred_idx)[0]
             handle.remove()
@@ -339,7 +372,9 @@ class GradientMasker(Masker):
 
         return ig_grads
 
-    def _get_gradient_magnitudes(self, labeled_instance, pred_idx, integrated_grad_steps):
+    def _get_gradient_magnitudes(
+        self, labeled_instance, pred_idx, integrated_grad_steps
+    ):
         """
         Method to calculated gradient magnitude in predictor according to gradient type
 
@@ -353,19 +388,25 @@ class GradientMasker(Masker):
             grad_magnitudes (list): vector of gradient magnitude for each token.
         """
         if self.grad_type == "integrated_l1":
-            grads = self._get_integrated_gradients(labeled_instance, pred_idx, steps=integrated_grad_steps)
+            grads = self._get_integrated_gradients(
+                labeled_instance, pred_idx, steps=integrated_grad_steps
+            )
             grad = grads["grad_input_1"][0]
-            grad_signed = np.sum(abs(grad), axis = 1)
+            grad_signed = np.sum(abs(grad), axis=1)
             grad_magnitudes = grad_signed.copy()
 
         elif self.grad_type == "integrated_signed":
-            grads = self._get_integrated_gradients(labeled_instance, pred_idx, steps=integrated_grad_steps)
+            grads = self._get_integrated_gradients(
+                labeled_instance, pred_idx, steps=integrated_grad_steps
+            )
             grad = grads["grad_input_1"][0]
-            grad_signed = np.sum(grad, axis = 1)
+            grad_signed = np.sum(grad, axis=1)
             grad_magnitudes = self.sign_direction * grad_signed
 
         elif self.grad_type == "integrated_l2":
-            grads = self._get_integrated_gradients(labeled_instance, pred_idx, steps=integrated_grad_steps)
+            grads = self._get_integrated_gradients(
+                labeled_instance, pred_idx, steps=integrated_grad_steps
+            )
             grad = grads["grad_input_1"][0]
             grad_signed = [g.dot(g) for g in grad]
             grad_magnitudes = grad_signed.copy()
@@ -373,13 +414,13 @@ class GradientMasker(Masker):
         elif self.grad_type == "normal_l1":
             grads = self._get_gradients_by_prob(labeled_instance, pred_idx)[0]
             grad = grads["grad_input_1"][0]
-            grad_signed = np.sum(abs(grad), axis = 1)
+            grad_signed = np.sum(abs(grad), axis=1)
             grad_magnitudes = grad_signed.copy()
 
         elif self.grad_type == "normal_signed":
             grads = self._get_gradients_by_prob(labeled_instance, pred_idx)[0]
             grad = grads["grad_input_1"][0]
-            grad_signed = np.sum(grad, axis = 1)
+            grad_signed = np.sum(grad, axis=1)
             grad_magnitudes = self.sign_direction * grad_signed
 
         elif self.grad_type == "normal_l2":
@@ -390,7 +431,9 @@ class GradientMasker(Masker):
 
         return grad_signed, grad_magnitudes
 
-    def sanity_check(self, predic_tok_end_idx, predic_tok_start_idx, grad_magnitudes, all_predic_toks):
+    def sanity_check(
+        self, predic_tok_end_idx, predic_tok_start_idx, grad_magnitudes, all_predic_toks
+    ):
         """
         Sanity Check for len magnitudes and predictor tokens
 
@@ -404,24 +447,25 @@ class GradientMasker(Masker):
 
         if predic_tok_end_idx is not None:
             if predic_tok_start_idx is not None:
-                assert(len(grad_magnitudes) == \
-                        predic_tok_end_idx - predic_tok_start_idx)
+                assert len(grad_magnitudes) == predic_tok_end_idx - predic_tok_start_idx
             else:
-                assert(len(grad_magnitudes) == predic_tok_end_idx)
+                assert len(grad_magnitudes) == predic_tok_end_idx
         elif max_length is not None and (len(grad_magnitudes)) >= max_length:
-            assert(max_length == (len(grad_magnitudes)))
+            assert max_length == (len(grad_magnitudes))
         else:
-            assert(len(all_predic_toks) == (len(grad_magnitudes)))
+            assert len(all_predic_toks) == (len(grad_magnitudes))
 
-    def get_important_editor_tokens(self, 
-                                    editable_seq,
-                                    pred_idx,
-                                    editor_tokenized,
-                                    labeled_instance=None,
-                                    predictor_tok_start_idx=None, 
-                                    predictor_tok_end_idx=None, 
-                                    num_return_toks=None):
-        """ Gets Editor tokens that correspond to Predictor toks
+    def get_important_editor_tokens(
+        self,
+        editable_seq,
+        pred_idx,
+        editor_tokenized,
+        labeled_instance=None,
+        predictor_tok_start_idx=None,
+        predictor_tok_end_idx=None,
+        num_return_toks=None,
+    ):
+        """Gets Editor tokens that correspond to Predictor toks
         with highest gradient values (with respect to pred_idx).
 
         editable_seq:
@@ -449,62 +493,77 @@ class GradientMasker(Masker):
             If not supplied, use self.mask_frac to calculate # tokens to return
         """
         integrated_grad_steps = self.num_integrated_grad_steps
-        tokenized_editable_seq = self.predictor.tokenizer(editable_seq,
-                                                          truncation=True,
-                                                          max_length=self.predictor.tokenizer.model_max_length)
+        tokenized_editable_seq = self.predictor.tokenizer(
+            editable_seq,
+            truncation=True,
+            max_length=self.predictor.tokenizer.model_max_length,
+        )
 
         if self.predictor.tokenizer.is_fast:
             all_predic_toks = tokenized_editable_seq.tokens()
         else:
-            all_predic_toks =self.predictor.tokenizer.convert_ids_to_tokens(tokenized_editable_seq["input_ids"])
+            all_predic_toks = self.predictor.tokenizer.convert_ids_to_tokens(
+                tokenized_editable_seq["input_ids"]
+            )
 
-        #logger.info(f"tokenized_editable_seq:\n{tokenized_editable_seq}")
-        #logger.info(f"all_predic_toks:\n{all_predic_toks}")
         # TODO: Does NOT work for RACE
         # If labeled_instance is not supplied, create one
         if labeled_instance is None:
             labeled_instance = self.predictor(editable_seq)[0][0]
-            labeled_instance['sentence'] = editable_seq
+            labeled_instance["sentence"] = editable_seq
 
-        grad_type_options = ["integrated_l1", "integrated_signed", "normal_l1",
-                             "normal_signed", "normal_l2", "integrated_l2"]
+        grad_type_options = [
+            "integrated_l1",
+            "integrated_signed",
+            "normal_l1",
+            "normal_signed",
+            "normal_l2",
+            "integrated_l2",
+        ]
         if self.grad_type not in grad_type_options:
             raise ValueError("Invalid value for grad_type")
         # Grad_magnitudes is used for sorting; highest values ordered first.
         # -> For signed, to only mask most neg values, multiply by -1
-        grad_signed, grad_magnitudes = self._get_gradient_magnitudes(labeled_instance,
-                                                                     pred_idx,
-                                                                     integrated_grad_steps)
-        
+        grad_signed, grad_magnitudes = self._get_gradient_magnitudes(
+            labeled_instance, pred_idx, integrated_grad_steps
+        )
+
         # Include only gradient values for editable parts of the inp
         if predictor_tok_end_idx is not None:
-            #logger.info(f"predictor_tok_end_idx:{predictor_tok_end_idx}")
             if predictor_tok_start_idx is not None:
-                #logger.info(f"predictor_tok_start_idx:{predictor_tok_start_idx}")
-                grad_magnitudes = grad_magnitudes[predictor_tok_start_idx:predictor_tok_end_idx]
+                grad_magnitudes = grad_magnitudes[
+                    predictor_tok_start_idx:predictor_tok_end_idx
+                ]
                 grad_signed = grad_signed[predictor_tok_start_idx:predictor_tok_end_idx]
             else:
                 grad_magnitudes = grad_magnitudes[:predictor_tok_end_idx]
                 grad_signed = grad_signed[:predictor_tok_end_idx]
-        #logger.info(f"grad_signed:\n{grad_signed}\ngrad_magnitudes:\n{grad_magnitudes}")
-        
+
         # Order Predictor tokens from largest to smallest gradient values
         ordered_predic_tok_indices = np.argsort(grad_magnitudes)[::-1]
-        #logger.info(f"type(grad_magnitudes):{type(grad_magnitudes)}")
-        #logger.info(f"np.argsort(grad_magnitudes):\n{np.argsort(grad_magnitudes)}")
         ordered_word_indices_by_grad = [
-            self._get_word_positions(tokenized_editable_seq.token_to_chars(idx),
-                                     editor_tokenized)[0]
+            self._get_word_positions(
+                tokenized_editable_seq.token_to_chars(idx), editor_tokenized
+            )[0]
             for idx in ordered_predic_tok_indices
             if all_predic_toks[idx] not in self.predictor_special_toks
         ]
-        ordered_word_indices_by_grad = [item for sublist in ordered_word_indices_by_grad for item in sublist]
+        ordered_word_indices_by_grad = [
+            item for sublist in ordered_word_indices_by_grad for item in sublist
+        ]
         # Sanity checks
-        self.sanity_check(predictor_tok_end_idx, predictor_tok_start_idx, grad_magnitudes, all_predic_toks)
+        self.sanity_check(
+            predictor_tok_end_idx,
+            predictor_tok_start_idx,
+            grad_magnitudes,
+            all_predic_toks,
+        )
 
         # Get num words to return
         if num_return_toks is None:
-            num_return_toks = math.ceil(self.mask_frac * len(ordered_word_indices_by_grad))
+            num_return_toks = math.ceil(
+                self.mask_frac * len(ordered_word_indices_by_grad)
+            )
 
         highest_editor_tok_indices = []
         for idx in ordered_word_indices_by_grad:
@@ -512,18 +571,69 @@ class GradientMasker(Masker):
                 highest_editor_tok_indices.append(idx)
                 if len(highest_editor_tok_indices) == num_return_toks:
                     break
-        # why is this done?? probably an error
-        # highest_predic_tok_indices = ordered_predic_tok_indices[:num_return_toks]
+
         return highest_editor_tok_indices
 
+    def merge_multiple_ranked_lists(self, list_of_list: List[List]):
+        queues = [deque(lst) for lst in list_of_list]
+        seen = set()
+        result = []
+        while any(queues):
+            idx = random.randint(0, len(queues) - 1)
+            q = queues[idx]
+            if q:
+                item = q.popleft()
+                if item not in seen:
+                    result.append(item)
+                    seen.add(item)
+        return result
+
+    def multilabel_editor_mask_indices(
+        self, editable_seq, pred_idx, editor_tokenized, **kwargs
+    ):
+        mask_indices_list = []
+        for idx, pred_value in enumerate(pred_idx):
+            self.sign_direction = 1 if pred_value == 1 else -1
+            editor_mask_indices = self.get_important_editor_tokens(
+                editable_seq, idx, editor_tokenized, **kwargs
+            )
+            # logger.info(f"pred_idx: {idx}, len(editor_mask_indices): {len(editor_mask_indices)}")
+            mask_indices_list.append(editor_mask_indices)
+
+        merged_editor_mask_indices = self.merge_multiple_ranked_lists(mask_indices_list)
+        return merged_editor_mask_indices
+
     def _get_mask_indices(self, **kwargs):
+        """Helper function to get indices of Editor tokens to mask."""
         # TODO
-        # Check this??
-        """ Helper function to get indices of Editor tokens to mask. """
-        editable_seq = kwargs.pop('editable_seq')
-        pred_idx = kwargs.pop('pred_idx')
-        kwargs.pop('editor_tokens')
-        editor_tokenized = kwargs.pop('editor_tokenized')
-        editor_mask_indices = self.get_important_editor_tokens(editable_seq, pred_idx, editor_tokenized, **kwargs)
-        #logger.info(f"editor_mask_indices:\n{editor_mask_indices}")
+        # multilabel support goes in here
+        # multilabel support needs for the gradient to be signed.
+        # it needs the binarized label vector
+        # we can choose to either
+        #   - randomly choose one label and only mask those with sign variation
+        #     depending of whether its label is 0 or 1.
+        #   - rank the tokens for all the labels, randomly choose one label mask the highest token
+        #     and remove it from the other labels and so on. Also with the binarized label variation.
+        #     we do it until we ran out of tokens
+        editable_seq = kwargs.pop("editable_seq")
+        pred_idx = kwargs.pop("pred_idx")
+
+        if "pred_value" in kwargs.keys():
+            pred_value = kwargs.pop("pred_value")
+
+        kwargs.pop("editor_tokens")
+        editor_tokenized = kwargs.pop("editor_tokenized")
+
+        is_multilabel = (
+            self.predictor.model.config.problem_type == "multi_label_classification"
+        )
+
+        if "signed" in self.grad_type and is_multilabel and isinstance(pred_idx, int):
+            self.sign_direction = 1 if pred_value >= 0.5 else -1
+            logger.info("Changing Direction")
+
+        editor_mask_indices = self.get_important_editor_tokens(
+            editable_seq, pred_idx, editor_tokenized, **kwargs
+        )
+
         return editor_mask_indices
