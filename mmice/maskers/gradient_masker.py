@@ -65,6 +65,7 @@ class GradientMasker(Masker):
         grad_type="normal_l2",
         sign_direction=None,
         num_integrated_grad_steps=10,
+        embedding_attr="base_model.embeddings",
     ):
         super().__init__(mask_frac, editor_tok_wrapper, max_tokens)
 
@@ -73,6 +74,7 @@ class GradientMasker(Masker):
         self.num_integrated_grad_steps = num_integrated_grad_steps
         self.sign_direction = sign_direction
         self._token_offsets: List[Tensor] = []
+        self.embedding_attr = embedding_attr
 
         if "signed" in self.grad_type and sign_direction is None:
             error_msg = "To calculate a signed gradient value, need to specify sign direction but got None for sign_direction"
@@ -88,6 +90,13 @@ class GradientMasker(Masker):
         # reverse engineered the hugginface tokenizer when you could just use
         # the original class?
         self.predictor_special_toks = temp_tokenizer.all_special_tokens
+
+    def _get_embedding_layer(self, model):
+        """Resolve the text embedding layer from a dotted attribute path."""
+        layer = model
+        for attr in self.embedding_attr.split("."):
+            layer = getattr(layer, attr)
+        return layer
 
     def _register_embedding_gradient_hooks(self, model, embedding_gradients):
         """
@@ -135,9 +144,8 @@ class GradientMasker(Masker):
                 self._token_offsets.append(offsets)
 
         hooks = []
-        text_field_embedder = model.base_model.embeddings
-        hooks.append(text_field_embedder.register_forward_hook(get_token_offsets))
-        embedding_layer = model.base_model.embeddings
+        embedding_layer = self._get_embedding_layer(model)
+        hooks.append(embedding_layer.register_forward_hook(get_token_offsets))
         hooks.append(embedding_layer.register_full_backward_hook(hook_layers))
         return hooks
 
@@ -164,8 +172,16 @@ class GradientMasker(Masker):
             max_length=self.predictor.tokenizer.model_max_length,
             return_tensors="pt",
         ).to(self.predictor.device)
+
+        forward_kwargs = dict(tokenized_instances)
+        if "images" in instances and instances["images"] is not None:
+            images = instances["images"]
+            if hasattr(images, "to"):
+                images = images.to(self.predictor.device)
+                forward_kwargs["images"] = images
+
         with backends.cudnn.flags(enabled=True):
-            outputs = self.predictor.model(**tokenized_instances)
+            outputs = self.predictor.model(**forward_kwargs)
             # Differs here
             prob = outputs["logits"][0][pred_idx]
             self.predictor.model.zero_grad()
@@ -330,7 +346,7 @@ class GradientMasker(Masker):
 
             output.mul_(alpha)
 
-        embedding_layer = self.predictor.model.base_model.embeddings
+        embedding_layer = self._get_embedding_layer(self.predictor.model)
         handle = embedding_layer.register_forward_hook(forward_hook)
         return handle
 
@@ -464,6 +480,7 @@ class GradientMasker(Masker):
         predictor_tok_start_idx=None,
         predictor_tok_end_idx=None,
         num_return_toks=None,
+        images=None,
     ):
         """Gets Editor tokens that correspond to Predictor toks
         with highest gradient values (with respect to pred_idx).
@@ -509,8 +526,11 @@ class GradientMasker(Masker):
         # TODO: Does NOT work for RACE
         # If labeled_instance is not supplied, create one
         if labeled_instance is None:
-            labeled_instance = self.predictor(editable_seq)[0][0]
+            labeled_instance = self.predictor(editable_seq, images=images)[0][0]
             labeled_instance["sentence"] = editable_seq
+
+        if images is not None:
+            labeled_instance["images"] = images
 
         grad_type_options = [
             "integrated_l1",
@@ -589,13 +609,13 @@ class GradientMasker(Masker):
         return result
 
     def multilabel_editor_mask_indices(
-        self, editable_seq, pred_idx, editor_tokenized, **kwargs
+        self, editable_seq, pred_idx, editor_tokenized, images=None, **kwargs
     ):
         mask_indices_list = []
         for idx, pred_value in enumerate(pred_idx):
             self.sign_direction = 1 if pred_value == 1 else -1
             editor_mask_indices = self.get_important_editor_tokens(
-                editable_seq, idx, editor_tokenized, **kwargs
+                editable_seq, idx, editor_tokenized, images=images, **kwargs
             )
             # logger.info(f"pred_idx: {idx}, len(editor_mask_indices): {len(editor_mask_indices)}")
             mask_indices_list.append(editor_mask_indices)

@@ -56,11 +56,13 @@ def train_epoch(epoch, editor_tokenizer, editor_model, train_data_loader, optimi
         lm_labels = batch["target_ids"]
         lm_labels[lm_labels == editor_tokenizer.pad_token_id] = -100
         ids = batch["source_ids"]
-        # outputs = editor_model(input_ids=ids, labels=lm_labels, attention_mask=batch['source_mask'])
+        images = batch.get("images", None)
         outputs = editor_model(
             input_ids=ids,
             labels=lm_labels,
+            images=images,
         )
+        # outputs = editor_model(input_ids=ids, labels=lm_labels, attention_mask=batch['source_mask'])
         loss = outputs.loss
         total_loss += loss.item()
         ACCELERATOR.backward(loss)
@@ -104,9 +106,11 @@ def validate_epoch(epoch, editor_tokenizer, editor_model, val_data_loader):
         lm_labels[lm_labels == editor_tokenizer.pad_token_id] = -100
         ids = batch["source_ids"]
         # outputs = editor_model(input_ids=ids, labels=lm_labels, attention_mask=batch['source_mask'])
+        images = batch.get("images", None)
         outputs = editor_model(
             input_ids=ids,
             labels=lm_labels,
+            images=images,
         )
         loss = outputs.loss
         total_loss += loss.item()
@@ -132,6 +136,8 @@ def get_datasets(
     val_labels,
     editor_tokenizer,
     args,
+    train_images=None,
+    val_images=None,
 ):
     """
     Writes data for Editor fine-tuning.
@@ -155,6 +161,7 @@ def get_datasets(
     """
     train_data_path = os.path.join(data_dir, "train_data.csv")
     val_data_path = os.path.join(data_dir, "val_data.csv")
+    image_dir = os.path.join(data_dir, "images")
 
     # If data already exists for experiment, read data
     if os.path.exists(train_data_path) and os.path.exists(val_data_path):
@@ -165,11 +172,22 @@ def get_datasets(
         train_csv = pd.read_csv(train_data_path, sep="\t")
         val_csv = pd.read_csv(val_data_path, sep="\t")
 
+        # Load image paths if the column exists (multimodal)
+        train_image_paths = (
+            list(train_csv["image_paths"])
+            if "image_paths" in train_csv.columns
+            else None
+        )
+        val_image_paths = (
+            list(val_csv["image_paths"]) if "image_paths" in val_csv.columns else None
+        )
+
         train_dataset = StageOneDataset(
             editor_tokenizer,
             max_length=args.model.model_max_length,
             masked_strings=train_csv["inputs"],
             targets=train_csv["targets"],
+            image_paths=train_image_paths,
             lang=args.meta.lang,
         )
         val_dataset = StageOneDataset(
@@ -177,6 +195,7 @@ def get_datasets(
             max_length=args.model.model_max_length,
             masked_strings=val_csv["inputs"],
             targets=val_csv["targets"],
+            image_paths=val_image_paths,
             lang=args.meta.lang,
         )
 
@@ -232,26 +251,46 @@ def get_datasets(
                 predictor,
                 masker,
                 target_label=args.misc.target_label,
+                orig_images=train_images,
+                image_dir=(
+                    os.path.join(image_dir, "train")
+                    if train_images is not None
+                    else None
+                ),
             )
+            torch.cuda.empty_cache()
             val_dataset.create_inputs(
                 val_inputs,
                 val_labels,
                 predictor,
                 masker,
                 target_label=args.misc.target_label,
+                orig_images=val_images,
+                image_dir=(
+                    os.path.join(image_dir, "val") if val_images is not None else None
+                ),
             )
         logger.info("Done creating data.")
 
         # Write data
         logger.info(f"Writing train data to: {train_data_path}")
-        train_masked_df = pd.DataFrame(
-            {"inputs": train_dataset.masked_strings, "targets": train_dataset.targets}
-        )
+        train_data = {
+            "inputs": train_dataset.masked_strings,
+            "targets": train_dataset.targets,
+        }
+        if train_dataset.image_paths is not None:
+            train_data["image_paths"] = train_dataset.image_paths
+        train_masked_df = pd.DataFrame(train_data)
         train_masked_df.to_csv(train_data_path, sep="\t")
+
         logger.info(f"Writing val data to: {val_data_path}")
-        val_masked_df = pd.DataFrame(
-            {"inputs": val_dataset.masked_strings, "targets": val_dataset.targets}
-        )
+        val_data = {
+            "inputs": val_dataset.masked_strings,
+            "targets": val_dataset.targets,
+        }
+        if val_dataset.image_paths is not None:
+            val_data["image_paths"] = val_dataset.image_paths
+        val_masked_df = pd.DataFrame(val_data)
         val_masked_df.to_csv(val_data_path, sep="\t")
 
     return train_dataset, val_dataset
@@ -287,6 +326,7 @@ def get_stage_one_masker(args, editor_tokenizer, predictor):
             args.model.model_max_length,
             grad_type=args.mask.grad_type,
             sign_direction=sign_direction,
+            embedding_attr=args.model.embedding_attr,
         )
     logger.info("Done.")
     return masker
@@ -307,19 +347,35 @@ def get_task_data(args, dataset_reader):
         train_labels (_type_): _description_
         val_labels (_type_): _description_
     """
-    if args.meta.task in ["imdb", "newsgroups", "chileanhate", "42k_hcuch"]:
+    if args.meta.task in [
+        "imdb",
+        "newsgroups",
+        "chileanhate",
+        "42k_hcuch",
+        "BoSsa-MIMIC-CXR-1024",
+    ]:
         train_data, val_data = dataset_reader.train_test_split(
             train_size=args.train.data_split_ratio
         ).values()
         train_inputs, train_labels = train_data["text"], train_data["label"]
         val_inputs, val_labels = val_data["text"], val_data["label"]
+        has_images = "image" in train_data.column_names
+        train_image_data = train_data if has_images else None
+        val_image_data = val_data if has_images else None
     else:
         logger.error("Unsupported dataset")
         raise Exception("Unsupported Task dataset")
     logger.info(f"Num train for Editor fine-tuning: {len(train_inputs)}")
     logger.info(f"Num val for Editor fine-tuning: {len(val_inputs)}")
 
-    return train_inputs, val_inputs, train_labels, val_labels
+    return (
+        train_inputs,
+        val_inputs,
+        train_labels,
+        val_labels,
+        train_image_data,
+        val_image_data,
+    )
 
 
 def run_train_editor(predictor, dataset_reader, args):
@@ -337,7 +393,10 @@ def run_train_editor(predictor, dataset_reader, args):
     torch.backends.cudnn.deterministic = True
 
     editor_tokenizer, editor_model = load_base_editor(
-        model_name=args.model.model_name, max_length=args.model.model_max_length
+        model_name=args.model.model_name,
+        max_length=args.model.model_max_length,
+        multimodal=getattr(args.model, "multimodal", False),
+        multimodal_args=vars(args.model),
     )
     if args.model.lora:
         # Define LoRA configuration
@@ -397,8 +456,8 @@ def run_train_editor(predictor, dataset_reader, args):
     }
 
     # Load original task data
-    train_inputs, val_inputs, train_labels, val_labels = get_task_data(
-        args, dataset_reader
+    train_inputs, val_inputs, train_labels, val_labels, train_images, val_images = (
+        get_task_data(args, dataset_reader)
     )
     # Get datasets for Editor training
     train_dataset, val_dataset = get_datasets(
@@ -412,6 +471,8 @@ def run_train_editor(predictor, dataset_reader, args):
         val_labels,
         editor_tokenizer,
         args,
+        train_images=train_images,
+        val_images=val_images,
     )
     # We free all used gpu memory on creating the inputs and free the used predictor from memory
     torch.cuda.empty_cache()

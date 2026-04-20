@@ -665,10 +665,7 @@ class MultimodalT5ForConditionalGeneration(nn.Module):
                     ):
                         delattr(layer, "_current_visual_features")
 
-        return {
-            "loss": outputs.loss,
-            "logits": outputs.logits,
-        }
+        return outputs
 
     def generate(
         self,

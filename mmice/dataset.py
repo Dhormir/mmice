@@ -3,10 +3,16 @@ from torch.utils.data import Dataset
 from tqdm.auto import tqdm
 import numpy as np
 import logging
+import os
 
 # Local imports
 from .maskers.mask_error import MaskError
-from .utils import get_predictor_tokenized, format_classif_input, wrap_text, format_multiple_choice_input
+from .utils import (
+    get_predictor_tokenized,
+    format_classif_input,
+    wrap_text,
+    format_multiple_choice_input,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -15,15 +21,24 @@ logger.setLevel(logging.INFO)
 # Random Number Generator
 RNG = np.random.default_rng(seed=42)
 
+
 class StageOneDataset(Dataset):
-    """ Dataset for training Editor models in Stage One. Creates masked inputs 
-    from task training inputs. Inherits from torch.utils.data.Dataset. """
+    """Dataset for training Editor models in Stage One. Creates masked inputs
+    from task training inputs. Inherits from torch.utils.data.Dataset."""
 
-
-    def __init__(self, tokenizer, max_length=512, masked_strings=None, targets=None, lang='en'):
+    def __init__(
+        self,
+        tokenizer,
+        max_length=512,
+        masked_strings=None,
+        targets=None,
+        image_paths=None,
+        lang="en",
+    ):
         self.tokenizer = tokenizer
         self.masked_strings = masked_strings
         self.targets = targets
+        self.image_paths = image_paths
         self.max_length = max_length
         self.lang = lang
 
@@ -61,13 +76,19 @@ class StageOneDataset(Dataset):
                 )[-1]
             ]
         )
-        return {
+
+        item = {
             "eos_id": eos_id,
             "source_ids": source_ids.to(dtype=torch.long),
             "source_mask": source_mask.to(dtype=torch.long),
             "target_ids": target_ids.to(dtype=torch.long),
             "target_ids_y": target_ids.to(dtype=torch.long),
         }
+
+        if self.image_paths is not None:
+            item["images"] = torch.load(self.image_paths[index], weights_only=True)
+
+        return item
 
     def multilabels_to_array(self, labels: list, label2id: dict):
         length = max(label2id, key=lambda k: label2id[k]) + 1
@@ -99,6 +120,8 @@ class StageOneDataset(Dataset):
         target_label="pred",
         mask_fracs=np.arange(0.2, 0.6, 0.05),
         mask_frac_probs=[0.125] * 8,
+        orig_images=None,
+        image_dir=None,
     ):
         target_label_options = ["pred", "gold"]
         if target_label not in target_label_options:
@@ -106,7 +129,11 @@ class StageOneDataset(Dataset):
             error_msg += f"but got '{target_label}'"
             raise ValueError(error_msg)
 
-        masked_strings, targets = [], []
+        # Set up image directory if we have images
+        if orig_images is not None and image_dir is not None:
+            os.makedirs(image_dir, exist_ok=True)
+
+        masked_strings, targets, image_paths_out = [], [], []
         # We get the label mapping from the pipeline
         labels_to_ints = predictor.model.config.label2id
 
@@ -116,9 +143,24 @@ class StageOneDataset(Dataset):
             iterator, total=len(orig_inputs), desc="create_inputs loop progress"
         ):
             masker.mask_frac = RNG.choice(mask_fracs, 1, p=mask_frac_probs)[0]
+
+            # Save the image for this sample once, reuse the path for all masked outputs
+            sample_image = None
+            sample_image_path = None
+            if orig_images is not None:
+                sample_image = orig_images[i]["image"]  # lazy load from HF dataset
+                if image_dir is not None:
+                    sample_image_path = os.path.join(image_dir, f"{i}.pt")
+                    if not os.path.exists(sample_image_path):
+                        img_tensor = (
+                            sample_image
+                            if isinstance(sample_image, torch.Tensor)
+                            else torch.tensor(sample_image)
+                        )
+                        torch.save(img_tensor, sample_image_path)
             # This is more memory efficient than always using the predictor whether we are using gold or predicted labels
             label_to_use = (
-                predictor(orig_inp)[0]["label"]
+                predictor(orig_inp, images=sample_image)[0]["label"]
                 if target_label == "pred"
                 else orig_label
             )
@@ -161,13 +203,12 @@ class StageOneDataset(Dataset):
                     pred_idx=pred[0],
                     pred_value=pred[1],
                     predictor_tok_end_idx=predictor_tok_end_idx,
+                    images=sample_image,
                 )[2:]
                 format_input = lambda values: format_classif_input(
                     values[0], values[1], self.lang
                 )
 
-                # ToDO
-                # Check for only one label_idx
                 map_mask_string = map(
                     mask_string,
                     (
@@ -197,6 +238,8 @@ class StageOneDataset(Dataset):
                 if predictor.model.config.problem_type == "multi_label_classification":
                     assert len(targets_) == len(labels_to_ints)
                 targets += targets_
+                if sample_image_path is not None:
+                    image_paths_out += [sample_image_path] * len(masked_strings_)
 
                 verbose = True if i % 500 == 0 else False
                 if verbose:
@@ -221,6 +264,7 @@ class StageOneDataset(Dataset):
 
         self.masked_strings = masked_strings
         self.targets = targets
+        self.image_paths = image_paths_out if image_paths_out else None
 
 
 class RaceStageOneDataset(StageOneDataset):

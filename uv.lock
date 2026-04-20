@@ -774,6 +774,18 @@ http = [
 ]
 
 [[package]]
+name = "ftfy"
+version = "6.3.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "wcwidth" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/a5/d3/8650919bc3c7c6e90ee3fa7fd618bf373cbbe55dff043bd67353dbb20cd8/ftfy-6.3.1.tar.gz", hash = "sha256:9b3c3d90f84fb267fe64d375a07b7f8912d817cf86009ae134aa03e1819506ec", size = 308927, upload-time = "2024-10-26T00:50:35.149Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ab/6e/81d47999aebc1b155f81eca4477a616a70f238a2549848c38983f3c22a82/ftfy-6.3.1-py3-none-any.whl", hash = "sha256:7c70eb532015cd2f9adb53f101fb6c7945988d023a085d127d1573dc49dd0083", size = 44821, upload-time = "2024-10-26T00:50:33.425Z" },
+]
+
+[[package]]
 name = "hf-xet"
 version = "1.1.3"
 source = { registry = "https://pypi.org/simple" }
@@ -808,6 +820,9 @@ wheels = [
 ]
 
 [package.optional-dependencies]
+cli = [
+    { name = "inquirerpy" },
+]
 hf-xet = [
     { name = "hf-xet" },
 ]
@@ -837,6 +852,19 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/72/34/14ca021ce8e5dfedc35312d08ba8bf51fdd999c576889fc2c24cb97f4f10/iniconfig-2.3.0.tar.gz", hash = "sha256:c76315c77db068650d49c5b56314774a7804df16fee4402c1f19d6d15d8c4730", size = 20503, upload-time = "2025-10-18T21:55:43.219Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/cb/b1/3846dd7f199d53cb17f49cba7e651e9ce294d8497c8c150530ed11865bb8/iniconfig-2.3.0-py3-none-any.whl", hash = "sha256:f631c04d2c48c52b84d0d0549c99ff3859c98df65b3101406327ecc7d53fbf12", size = 7484, upload-time = "2025-10-18T21:55:41.639Z" },
+]
+
+[[package]]
+name = "inquirerpy"
+version = "0.3.4"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pfzy" },
+    { name = "prompt-toolkit" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/64/73/7570847b9da026e07053da3bbe2ac7ea6cde6bb2cbd3c7a5a950fa0ae40b/InquirerPy-0.3.4.tar.gz", hash = "sha256:89d2ada0111f337483cb41ae31073108b2ec1e618a49d7110b0d7ade89fc197e", size = 44431, upload-time = "2022-06-27T23:11:20.598Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ce/ff/3b59672c47c6284e8005b42e84ceba13864aa0f39f067c973d1af02f5d91/InquirerPy-0.3.4-py3-none-any.whl", hash = "sha256:c65fdfbac1fa00e3ee4fb10679f4d3ed7a012abf4833910e63c295827fe2a7d4", size = 67677, upload-time = "2022-06-27T23:11:17.723Z" },
 ]
 
 [[package]]
@@ -1343,7 +1371,7 @@ source = { virtual = "." }
 dependencies = [
     { name = "accelerate" },
     { name = "datasets" },
-    { name = "huggingface-hub", extra = ["hf-xet"] },
+    { name = "huggingface-hub", extra = ["cli", "hf-xet"] },
     { name = "ipykernel" },
     { name = "ipywidgets" },
     { name = "mauve-text" },
@@ -1352,6 +1380,7 @@ dependencies = [
     { name = "nltk" },
     { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11' or (extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118') or (extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128') or (extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128')" },
     { name = "numpy", version = "2.3.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11' or (extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118') or (extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128') or (extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128')" },
+    { name = "open-clip-torch" },
     { name = "pandas" },
     { name = "peft" },
     { name = "pip" },
@@ -1363,6 +1392,12 @@ dependencies = [
     { name = "torch", version = "2.7.1+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform != 'darwin' and extra == 'extra-17-multilingual-mice-cpu') or (extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118') or (extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128') or (extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128')" },
     { name = "torch", version = "2.7.1+cu118", source = { registry = "https://download.pytorch.org/whl/cu118" }, marker = "extra == 'extra-17-multilingual-mice-cu118' or (extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128')" },
     { name = "torch", version = "2.7.1+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "(extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118') or (extra != 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128') or (extra != 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128')" },
+    { name = "torchvision", version = "0.22.1", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(platform_machine == 'aarch64' and sys_platform == 'linux' and extra == 'extra-17-multilingual-mice-cpu') or (platform_machine != 'aarch64' and extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118') or (platform_machine != 'aarch64' and extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128') or (platform_machine != 'aarch64' and extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128') or (sys_platform == 'darwin' and extra == 'extra-17-multilingual-mice-cpu') or (sys_platform != 'linux' and extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118') or (sys_platform != 'linux' and extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128') or (sys_platform != 'linux' and extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128') or (sys_platform == 'darwin' and extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128') or (extra != 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128')" },
+    { name = "torchvision", version = "0.22.1", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "(platform_machine == 'aarch64' and sys_platform == 'linux' and extra == 'extra-17-multilingual-mice-cu128') or (platform_machine != 'aarch64' and extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128') or (sys_platform != 'linux' and extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128') or (extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118') or (extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128')" },
+    { name = "torchvision", version = "0.22.1", source = { registry = "https://pypi.org/simple" }, marker = "(extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118') or (extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128') or (extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128') or (extra != 'extra-17-multilingual-mice-cpu' and extra != 'extra-17-multilingual-mice-cu118' and extra != 'extra-17-multilingual-mice-cu128')" },
+    { name = "torchvision", version = "0.22.1+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(platform_machine != 'aarch64' and sys_platform == 'linux' and extra == 'extra-17-multilingual-mice-cpu') or (sys_platform != 'darwin' and sys_platform != 'linux' and extra == 'extra-17-multilingual-mice-cpu') or (sys_platform == 'darwin' and extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118') or (sys_platform == 'darwin' and extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128') or (sys_platform == 'darwin' and extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128') or (sys_platform == 'linux' and extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118') or (sys_platform == 'linux' and extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128') or (extra != 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128')" },
+    { name = "torchvision", version = "0.22.1+cu118", source = { registry = "https://download.pytorch.org/whl/cu118" }, marker = "extra == 'extra-17-multilingual-mice-cu118' or (extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128')" },
+    { name = "torchvision", version = "0.22.1+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "(platform_machine != 'aarch64' and extra == 'extra-17-multilingual-mice-cu128') or (sys_platform != 'linux' and extra != 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128') or (sys_platform != 'linux' and extra != 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128') or (extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118') or (extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128') or (extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128')" },
     { name = "tqdm" },
     { name = "transformers" },
 ]
@@ -1395,7 +1430,7 @@ dev = [
 requires-dist = [
     { name = "accelerate", specifier = ">=1.7.0" },
     { name = "datasets", specifier = ">=3.6.0" },
-    { name = "huggingface-hub", extras = ["hf-xet"], specifier = ">=0.32.5" },
+    { name = "huggingface-hub", extras = ["cli", "hf-xet"], specifier = ">=0.32.5" },
     { name = "ipykernel", specifier = ">=6.29.5" },
     { name = "ipywidgets", specifier = ">=8.1.7" },
     { name = "mauve-text", specifier = ">=0.4.0" },
@@ -1403,6 +1438,7 @@ requires-dist = [
     { name = "munch", specifier = ">=4.0.0" },
     { name = "nltk", specifier = ">=3.9.1" },
     { name = "numpy", specifier = ">=2.2.6" },
+    { name = "open-clip-torch", specifier = ">=3.3.0" },
     { name = "pandas", specifier = ">=2.3.0" },
     { name = "peft", specifier = ">=0.15.2" },
     { name = "pip", specifier = ">=25.1.1" },
@@ -1413,6 +1449,7 @@ requires-dist = [
     { name = "torch", marker = "extra == 'cpu'", specifier = ">=2.7.0", index = "https://download.pytorch.org/whl/cpu", conflict = { package = "multilingual-mice", extra = "cpu" } },
     { name = "torch", marker = "extra == 'cu118'", specifier = ">=2.7.0", index = "https://download.pytorch.org/whl/cu118", conflict = { package = "multilingual-mice", extra = "cu118" } },
     { name = "torch", marker = "extra == 'cu128'", specifier = ">=2.7.0", index = "https://download.pytorch.org/whl/cu128", conflict = { package = "multilingual-mice", extra = "cu128" } },
+    { name = "torchvision", specifier = ">=0.22.1" },
     { name = "torchvision", marker = "extra == 'cpu'", specifier = ">=0.22.0", index = "https://download.pytorch.org/whl/cpu", conflict = { package = "multilingual-mice", extra = "cpu" } },
     { name = "torchvision", marker = "extra == 'cu118'", specifier = ">=0.22.0", index = "https://download.pytorch.org/whl/cu118", conflict = { package = "multilingual-mice", extra = "cu118" } },
     { name = "torchvision", marker = "extra == 'cu128'", specifier = ">=0.22.0", index = "https://download.pytorch.org/whl/cu128", conflict = { package = "multilingual-mice", extra = "cu128" } },
@@ -1996,6 +2033,34 @@ wheels = [
 ]
 
 [[package]]
+name = "open-clip-torch"
+version = "3.3.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "ftfy" },
+    { name = "huggingface-hub" },
+    { name = "regex" },
+    { name = "safetensors" },
+    { name = "timm" },
+    { name = "torch", version = "2.7.1", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform == 'darwin' and extra == 'extra-17-multilingual-mice-cpu') or (extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118') or (extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128') or (extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128')" },
+    { name = "torch", version = "2.7.1", source = { registry = "https://pypi.org/simple" }, marker = "(extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118') or (extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128') or (extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128') or (extra != 'extra-17-multilingual-mice-cpu' and extra != 'extra-17-multilingual-mice-cu118' and extra != 'extra-17-multilingual-mice-cu128')" },
+    { name = "torch", version = "2.7.1+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform != 'darwin' and extra == 'extra-17-multilingual-mice-cpu') or (extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118') or (extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128') or (extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128')" },
+    { name = "torch", version = "2.7.1+cu118", source = { registry = "https://download.pytorch.org/whl/cu118" }, marker = "extra == 'extra-17-multilingual-mice-cu118' or (extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128')" },
+    { name = "torch", version = "2.7.1+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "(extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118') or (extra != 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128') or (extra != 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128')" },
+    { name = "torchvision", version = "0.22.1", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(platform_machine == 'aarch64' and sys_platform == 'linux' and extra == 'extra-17-multilingual-mice-cpu') or (platform_machine != 'aarch64' and extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118') or (platform_machine != 'aarch64' and extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128') or (platform_machine != 'aarch64' and extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128') or (sys_platform == 'darwin' and extra == 'extra-17-multilingual-mice-cpu') or (sys_platform != 'linux' and extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118') or (sys_platform != 'linux' and extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128') or (sys_platform != 'linux' and extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128') or (sys_platform == 'darwin' and extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128') or (extra != 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128')" },
+    { name = "torchvision", version = "0.22.1", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "(platform_machine == 'aarch64' and sys_platform == 'linux' and extra == 'extra-17-multilingual-mice-cu128') or (platform_machine != 'aarch64' and extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128') or (sys_platform != 'linux' and extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128') or (extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118') or (extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128')" },
+    { name = "torchvision", version = "0.22.1", source = { registry = "https://pypi.org/simple" }, marker = "(extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118') or (extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128') or (extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128') or (extra != 'extra-17-multilingual-mice-cpu' and extra != 'extra-17-multilingual-mice-cu118' and extra != 'extra-17-multilingual-mice-cu128')" },
+    { name = "torchvision", version = "0.22.1+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(platform_machine != 'aarch64' and sys_platform == 'linux' and extra == 'extra-17-multilingual-mice-cpu') or (sys_platform != 'darwin' and sys_platform != 'linux' and extra == 'extra-17-multilingual-mice-cpu') or (sys_platform == 'darwin' and extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118') or (sys_platform == 'darwin' and extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128') or (sys_platform == 'darwin' and extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128') or (sys_platform == 'linux' and extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118') or (sys_platform == 'linux' and extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128') or (extra != 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128')" },
+    { name = "torchvision", version = "0.22.1+cu118", source = { registry = "https://download.pytorch.org/whl/cu118" }, marker = "extra == 'extra-17-multilingual-mice-cu118' or (extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128')" },
+    { name = "torchvision", version = "0.22.1+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "(platform_machine != 'aarch64' and extra == 'extra-17-multilingual-mice-cu128') or (sys_platform != 'linux' and extra != 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128') or (sys_platform != 'linux' and extra != 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128') or (extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118') or (extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128') or (extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128')" },
+    { name = "tqdm" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/4a/1f/2bc9795047fa2c1ad2567ef78ce6dfc9a7b763fa534acee09a94da2a5b8f/open_clip_torch-3.3.0.tar.gz", hash = "sha256:904b1a9f909df8281bb3de60ab95491cd2994a509177ea4f9d6292a84fe24d6d", size = 1503380, upload-time = "2026-02-27T00:32:46.74Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/37/b5/41c315ccd94ca332ead3e832e83eee343ab245005c3e43d9d3e75eae34eb/open_clip_torch-3.3.0-py3-none-any.whl", hash = "sha256:c549ad5ed6bfc119cc11105033c0a2b9d7a2a4afeb40a58a09aab3da1a0043ce", size = 1547268, upload-time = "2026-02-27T00:32:44.902Z" },
+]
+
+[[package]]
 name = "packaging"
 version = "25.0"
 source = { registry = "https://pypi.org/simple" }
@@ -2107,6 +2172,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/42/92/cc564bf6381ff43ce1f4d06852fc19a2f11d180f23dc32d9588bee2f149d/pexpect-4.9.0.tar.gz", hash = "sha256:ee7d41123f3c9911050ea2c2dac107568dc43b2d3b0c7557a33212c398ead30f", size = 166450, upload-time = "2023-11-25T09:07:26.339Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/9e/c3/059298687310d527a58bb01f3b1965787ee3b40dce76752eda8b44e9a2c5/pexpect-4.9.0-py2.py3-none-any.whl", hash = "sha256:7236d1e080e4936be2dc3e326cec0af72acf9212a7e1d060210e70a47e253523", size = 63772, upload-time = "2023-11-25T06:56:14.81Z" },
+]
+
+[[package]]
+name = "pfzy"
+version = "0.3.4"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/d9/5a/32b50c077c86bfccc7bed4881c5a2b823518f5450a30e639db5d3711952e/pfzy-0.3.4.tar.gz", hash = "sha256:717ea765dd10b63618e7298b2d98efd819e0b30cd5905c9707223dceeb94b3f1", size = 8396, upload-time = "2022-01-28T02:26:17.946Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/8c/d7/8ff98376b1acc4503253b685ea09981697385ce344d4e3935c2af49e044d/pfzy-0.3.4-py3-none-any.whl", hash = "sha256:5f50d5b2b3207fa72e7ec0ef08372ef652685470974a107d0d4999fc5a903a96", size = 8537, upload-time = "2022-01-28T02:26:16.047Z" },
 ]
 
 [[package]]
@@ -3279,6 +3353,31 @@ wheels = [
 ]
 
 [[package]]
+name = "timm"
+version = "1.0.26"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "huggingface-hub" },
+    { name = "pyyaml" },
+    { name = "safetensors" },
+    { name = "torch", version = "2.7.1", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform == 'darwin' and extra == 'extra-17-multilingual-mice-cpu') or (extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118') or (extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128') or (extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128')" },
+    { name = "torch", version = "2.7.1", source = { registry = "https://pypi.org/simple" }, marker = "(extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118') or (extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128') or (extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128') or (extra != 'extra-17-multilingual-mice-cpu' and extra != 'extra-17-multilingual-mice-cu118' and extra != 'extra-17-multilingual-mice-cu128')" },
+    { name = "torch", version = "2.7.1+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform != 'darwin' and extra == 'extra-17-multilingual-mice-cpu') or (extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118') or (extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128') or (extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128')" },
+    { name = "torch", version = "2.7.1+cu118", source = { registry = "https://download.pytorch.org/whl/cu118" }, marker = "extra == 'extra-17-multilingual-mice-cu118' or (extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128')" },
+    { name = "torch", version = "2.7.1+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "(extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118') or (extra != 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128') or (extra != 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128')" },
+    { name = "torchvision", version = "0.22.1", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(platform_machine == 'aarch64' and sys_platform == 'linux' and extra == 'extra-17-multilingual-mice-cpu') or (platform_machine != 'aarch64' and extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118') or (platform_machine != 'aarch64' and extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128') or (platform_machine != 'aarch64' and extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128') or (sys_platform == 'darwin' and extra == 'extra-17-multilingual-mice-cpu') or (sys_platform != 'linux' and extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118') or (sys_platform != 'linux' and extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128') or (sys_platform != 'linux' and extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128') or (sys_platform == 'darwin' and extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128') or (extra != 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128')" },
+    { name = "torchvision", version = "0.22.1", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "(platform_machine == 'aarch64' and sys_platform == 'linux' and extra == 'extra-17-multilingual-mice-cu128') or (platform_machine != 'aarch64' and extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128') or (sys_platform != 'linux' and extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128') or (extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118') or (extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128')" },
+    { name = "torchvision", version = "0.22.1", source = { registry = "https://pypi.org/simple" }, marker = "(extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118') or (extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128') or (extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128') or (extra != 'extra-17-multilingual-mice-cpu' and extra != 'extra-17-multilingual-mice-cu118' and extra != 'extra-17-multilingual-mice-cu128')" },
+    { name = "torchvision", version = "0.22.1+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(platform_machine != 'aarch64' and sys_platform == 'linux' and extra == 'extra-17-multilingual-mice-cpu') or (sys_platform != 'darwin' and sys_platform != 'linux' and extra == 'extra-17-multilingual-mice-cpu') or (sys_platform == 'darwin' and extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118') or (sys_platform == 'darwin' and extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128') or (sys_platform == 'darwin' and extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128') or (sys_platform == 'linux' and extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118') or (sys_platform == 'linux' and extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128') or (extra != 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128')" },
+    { name = "torchvision", version = "0.22.1+cu118", source = { registry = "https://download.pytorch.org/whl/cu118" }, marker = "extra == 'extra-17-multilingual-mice-cu118' or (extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128')" },
+    { name = "torchvision", version = "0.22.1+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "(platform_machine != 'aarch64' and extra == 'extra-17-multilingual-mice-cu128') or (sys_platform != 'linux' and extra != 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128') or (sys_platform != 'linux' and extra != 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128') or (extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118') or (extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128') or (extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128')" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/7b/1e/e924b3b2326a856aaf68586f9c52a5fc81ef45715eca408393b68c597e0e/timm-1.0.26.tar.gz", hash = "sha256:f66f082f2f381cf68431c22714c8b70f723837fa2a185b155961eab90f2d5b10", size = 2419859, upload-time = "2026-03-23T18:12:10.272Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/6f/e9/bebf3d50e3fc847378988235f87c37ad3ac26d386041ab915d15e92025cd/timm-1.0.26-py3-none-any.whl", hash = "sha256:985c330de5ccc3a2aa0224eb7272e6a336084702390bb7e3801f3c91603d3683", size = 2568766, upload-time = "2026-03-23T18:12:08.062Z" },
+]
+
+[[package]]
 name = "tokenizers"
 version = "0.21.1"
 source = { registry = "https://pypi.org/simple" }
@@ -3362,11 +3461,11 @@ dependencies = [
     { name = "typing-extensions", marker = "(sys_platform == 'darwin' and extra == 'extra-17-multilingual-mice-cpu') or (extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118') or (extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128') or (extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128')" },
 ]
 wheels = [
-    { url = "https://download.pytorch.org/whl/cpu/torch-2.7.1-cp310-none-macosx_11_0_arm64.whl", hash = "sha256:f8c3bee261b0c8e090f6347490dc6ee2aebfd661eb0f3f6aeae06d992d8ed56f" },
-    { url = "https://download.pytorch.org/whl/cpu/torch-2.7.1-cp311-none-macosx_11_0_arm64.whl", hash = "sha256:68a352c7f435abb5cb47e2c032dcd1012772ae2bacb6fc8b83b0c1b11874ab3a" },
-    { url = "https://download.pytorch.org/whl/cpu/torch-2.7.1-cp312-none-macosx_11_0_arm64.whl", hash = "sha256:7b4f8b2b83bd08f7d399025a9a7b323bdbb53d20566f1e0d584689bb92d82f9a" },
-    { url = "https://download.pytorch.org/whl/cpu/torch-2.7.1-cp313-cp313t-macosx_14_0_arm64.whl", hash = "sha256:95af97e7b2cecdc89edc0558962a51921bf9c61538597dbec6b7cc48d31e2e13" },
-    { url = "https://download.pytorch.org/whl/cpu/torch-2.7.1-cp313-none-macosx_11_0_arm64.whl", hash = "sha256:7ecd868a086468e1bcf74b91db425c1c2951a9cfcd0592c4c73377b7e42485ae" },
+    { url = "https://download-r2.pytorch.org/whl/cpu/torch-2.7.1-cp310-none-macosx_11_0_arm64.whl", hash = "sha256:f8c3bee261b0c8e090f6347490dc6ee2aebfd661eb0f3f6aeae06d992d8ed56f" },
+    { url = "https://download-r2.pytorch.org/whl/cpu/torch-2.7.1-cp311-none-macosx_11_0_arm64.whl", hash = "sha256:68a352c7f435abb5cb47e2c032dcd1012772ae2bacb6fc8b83b0c1b11874ab3a" },
+    { url = "https://download-r2.pytorch.org/whl/cpu/torch-2.7.1-cp312-none-macosx_11_0_arm64.whl", hash = "sha256:7b4f8b2b83bd08f7d399025a9a7b323bdbb53d20566f1e0d584689bb92d82f9a" },
+    { url = "https://download-r2.pytorch.org/whl/cpu/torch-2.7.1-cp313-cp313t-macosx_14_0_arm64.whl", hash = "sha256:95af97e7b2cecdc89edc0558962a51921bf9c61538597dbec6b7cc48d31e2e13" },
+    { url = "https://download-r2.pytorch.org/whl/cpu/torch-2.7.1-cp313-none-macosx_11_0_arm64.whl", hash = "sha256:7ecd868a086468e1bcf74b91db425c1c2951a9cfcd0592c4c73377b7e42485ae" },
 ]
 
 [[package]]
@@ -3434,22 +3533,22 @@ dependencies = [
     { name = "typing-extensions", marker = "(sys_platform != 'darwin' and extra == 'extra-17-multilingual-mice-cpu') or (extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118') or (extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128') or (extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128')" },
 ]
 wheels = [
-    { url = "https://download.pytorch.org/whl/cpu/torch-2.7.1%2Bcpu-cp310-cp310-manylinux_2_28_aarch64.whl", hash = "sha256:c0df17cee97653d09a4e84488a33d21217f9b24208583c55cf28f0045aab0766" },
-    { url = "https://download.pytorch.org/whl/cpu/torch-2.7.1%2Bcpu-cp310-cp310-manylinux_2_28_x86_64.whl", hash = "sha256:1f04a373a3f643821f721da9898ef77dce73b5b6bfc64486f0976f7fb5f90e83" },
-    { url = "https://download.pytorch.org/whl/cpu/torch-2.7.1%2Bcpu-cp310-cp310-win_amd64.whl", hash = "sha256:b4cc706973655151f198d027ed34c92ab31a3db55676b44251194e1280631426" },
-    { url = "https://download.pytorch.org/whl/cpu/torch-2.7.1%2Bcpu-cp311-cp311-manylinux_2_28_aarch64.whl", hash = "sha256:5fe6045b8f426bf2d0426e4fe009f1667a954ec2aeb82f1bd0bf60c6d7a85445" },
-    { url = "https://download.pytorch.org/whl/cpu/torch-2.7.1%2Bcpu-cp311-cp311-manylinux_2_28_x86_64.whl", hash = "sha256:a1684793e352f03fa14f78857e55d65de4ada8405ded1da2bf4f452179c4b779" },
-    { url = "https://download.pytorch.org/whl/cpu/torch-2.7.1%2Bcpu-cp311-cp311-win_amd64.whl", hash = "sha256:7b977eccbc85ae2bd19d6998de7b1f1f4bd3c04eaffd3015deb7934389783399" },
-    { url = "https://download.pytorch.org/whl/cpu/torch-2.7.1%2Bcpu-cp312-cp312-manylinux_2_28_aarch64.whl", hash = "sha256:3bf2db5adf77b433844f080887ade049c4705ddf9fe1a32023ff84ff735aa5ad" },
-    { url = "https://download.pytorch.org/whl/cpu/torch-2.7.1%2Bcpu-cp312-cp312-manylinux_2_28_x86_64.whl", hash = "sha256:8f8b3cfc53010a4b4a3c7ecb88c212e9decc4f5eeb6af75c3c803937d2d60947" },
-    { url = "https://download.pytorch.org/whl/cpu/torch-2.7.1%2Bcpu-cp312-cp312-win_amd64.whl", hash = "sha256:0bc887068772233f532b51a3e8c8cfc682ae62bef74bf4e0c53526c8b9e4138f" },
-    { url = "https://download.pytorch.org/whl/cpu/torch-2.7.1%2Bcpu-cp312-cp312-win_arm64.whl", hash = "sha256:a2618775f32eb4126c5b2050686da52001a08cffa331637d9cf51c8250931e00" },
-    { url = "https://download.pytorch.org/whl/cpu/torch-2.7.1%2Bcpu-cp313-cp313-manylinux_2_28_aarch64.whl", hash = "sha256:eb17646792ac4374ffc87e42369f45d21eff17c790868963b90483ef0b6db4ef" },
-    { url = "https://download.pytorch.org/whl/cpu/torch-2.7.1%2Bcpu-cp313-cp313-manylinux_2_28_x86_64.whl", hash = "sha256:84ea1f6a1d15663037d01b121d6e33bb9da3c90af8e069e5072c30f413455a57" },
-    { url = "https://download.pytorch.org/whl/cpu/torch-2.7.1%2Bcpu-cp313-cp313-win_amd64.whl", hash = "sha256:b66f77f6f67317344ee083aa7ac4751a14395fcb38060d564bf513978d267153" },
-    { url = "https://download.pytorch.org/whl/cpu/torch-2.7.1%2Bcpu-cp313-cp313t-manylinux_2_28_aarch64.whl", hash = "sha256:56136a2aca6707df3c8811e46ea2d379eaafd18e656e2fd51e8e4d0ca995651b" },
-    { url = "https://download.pytorch.org/whl/cpu/torch-2.7.1%2Bcpu-cp313-cp313t-manylinux_2_28_x86_64.whl", hash = "sha256:355614185a2aea7155f9c88a20bfd49de5f3063866f3cf9b2f21b6e9e59e31e0" },
-    { url = "https://download.pytorch.org/whl/cpu/torch-2.7.1%2Bcpu-cp313-cp313t-win_amd64.whl", hash = "sha256:464bca1bc9452f2ccd676514688896e66b9488f2a0268ecd3ac497cf09c5aac1" },
+    { url = "https://download-r2.pytorch.org/whl/cpu/torch-2.7.1%2Bcpu-cp310-cp310-manylinux_2_28_aarch64.whl", hash = "sha256:c0df17cee97653d09a4e84488a33d21217f9b24208583c55cf28f0045aab0766" },
+    { url = "https://download-r2.pytorch.org/whl/cpu/torch-2.7.1%2Bcpu-cp310-cp310-manylinux_2_28_x86_64.whl", hash = "sha256:1f04a373a3f643821f721da9898ef77dce73b5b6bfc64486f0976f7fb5f90e83" },
+    { url = "https://download-r2.pytorch.org/whl/cpu/torch-2.7.1%2Bcpu-cp310-cp310-win_amd64.whl", hash = "sha256:b4cc706973655151f198d027ed34c92ab31a3db55676b44251194e1280631426" },
+    { url = "https://download-r2.pytorch.org/whl/cpu/torch-2.7.1%2Bcpu-cp311-cp311-manylinux_2_28_aarch64.whl", hash = "sha256:5fe6045b8f426bf2d0426e4fe009f1667a954ec2aeb82f1bd0bf60c6d7a85445" },
+    { url = "https://download-r2.pytorch.org/whl/cpu/torch-2.7.1%2Bcpu-cp311-cp311-manylinux_2_28_x86_64.whl", hash = "sha256:a1684793e352f03fa14f78857e55d65de4ada8405ded1da2bf4f452179c4b779" },
+    { url = "https://download-r2.pytorch.org/whl/cpu/torch-2.7.1%2Bcpu-cp311-cp311-win_amd64.whl", hash = "sha256:7b977eccbc85ae2bd19d6998de7b1f1f4bd3c04eaffd3015deb7934389783399" },
+    { url = "https://download-r2.pytorch.org/whl/cpu/torch-2.7.1%2Bcpu-cp312-cp312-manylinux_2_28_aarch64.whl", hash = "sha256:3bf2db5adf77b433844f080887ade049c4705ddf9fe1a32023ff84ff735aa5ad" },
+    { url = "https://download-r2.pytorch.org/whl/cpu/torch-2.7.1%2Bcpu-cp312-cp312-manylinux_2_28_x86_64.whl", hash = "sha256:8f8b3cfc53010a4b4a3c7ecb88c212e9decc4f5eeb6af75c3c803937d2d60947" },
+    { url = "https://download-r2.pytorch.org/whl/cpu/torch-2.7.1%2Bcpu-cp312-cp312-win_amd64.whl", hash = "sha256:0bc887068772233f532b51a3e8c8cfc682ae62bef74bf4e0c53526c8b9e4138f" },
+    { url = "https://download-r2.pytorch.org/whl/cpu/torch-2.7.1%2Bcpu-cp312-cp312-win_arm64.whl", hash = "sha256:a2618775f32eb4126c5b2050686da52001a08cffa331637d9cf51c8250931e00" },
+    { url = "https://download-r2.pytorch.org/whl/cpu/torch-2.7.1%2Bcpu-cp313-cp313-manylinux_2_28_aarch64.whl", hash = "sha256:eb17646792ac4374ffc87e42369f45d21eff17c790868963b90483ef0b6db4ef" },
+    { url = "https://download-r2.pytorch.org/whl/cpu/torch-2.7.1%2Bcpu-cp313-cp313-manylinux_2_28_x86_64.whl", hash = "sha256:84ea1f6a1d15663037d01b121d6e33bb9da3c90af8e069e5072c30f413455a57" },
+    { url = "https://download-r2.pytorch.org/whl/cpu/torch-2.7.1%2Bcpu-cp313-cp313-win_amd64.whl", hash = "sha256:b66f77f6f67317344ee083aa7ac4751a14395fcb38060d564bf513978d267153" },
+    { url = "https://download-r2.pytorch.org/whl/cpu/torch-2.7.1%2Bcpu-cp313-cp313t-manylinux_2_28_aarch64.whl", hash = "sha256:56136a2aca6707df3c8811e46ea2d379eaafd18e656e2fd51e8e4d0ca995651b" },
+    { url = "https://download-r2.pytorch.org/whl/cpu/torch-2.7.1%2Bcpu-cp313-cp313t-manylinux_2_28_x86_64.whl", hash = "sha256:355614185a2aea7155f9c88a20bfd49de5f3063866f3cf9b2f21b6e9e59e31e0" },
+    { url = "https://download-r2.pytorch.org/whl/cpu/torch-2.7.1%2Bcpu-cp313-cp313t-win_amd64.whl", hash = "sha256:464bca1bc9452f2ccd676514688896e66b9488f2a0268ecd3ac497cf09c5aac1" },
 ]
 
 [[package]]
@@ -3484,16 +3583,16 @@ dependencies = [
     { name = "typing-extensions", marker = "extra == 'extra-17-multilingual-mice-cu118' or (extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128')" },
 ]
 wheels = [
-    { url = "https://download.pytorch.org/whl/cu118/torch-2.7.1%2Bcu118-cp310-cp310-manylinux_2_28_x86_64.whl", hash = "sha256:89433c62b02ec802d4c0887c867d935887ae8f00d7cc549ecf1c2640d096bd4c" },
-    { url = "https://download.pytorch.org/whl/cu118/torch-2.7.1%2Bcu118-cp310-cp310-win_amd64.whl", hash = "sha256:af4833e36a8e964681a4dad7775f559cf043bd42c9d0c0b5e0619f9d0e44cb56" },
-    { url = "https://download.pytorch.org/whl/cu118/torch-2.7.1%2Bcu118-cp311-cp311-manylinux_2_28_x86_64.whl", hash = "sha256:a596d91c747d1fa601724e85b9c8797c8d7c62140aa1acf245773e911254bc45" },
-    { url = "https://download.pytorch.org/whl/cu118/torch-2.7.1%2Bcu118-cp311-cp311-win_amd64.whl", hash = "sha256:584e5ee99d29286b93be2fba3b3f1f5b9d7a4b9055a288eb31b33100a1f09ed9" },
-    { url = "https://download.pytorch.org/whl/cu118/torch-2.7.1%2Bcu118-cp312-cp312-manylinux_2_28_x86_64.whl", hash = "sha256:91454dcfdb81f181fdf216d6d6d9912fbd8795578b90384b3b8b8132737072bb" },
-    { url = "https://download.pytorch.org/whl/cu118/torch-2.7.1%2Bcu118-cp312-cp312-win_amd64.whl", hash = "sha256:80855ec840b7b06372ff43535d01393a8ec101842618d1f9ed629572b52aed71" },
-    { url = "https://download.pytorch.org/whl/cu118/torch-2.7.1%2Bcu118-cp313-cp313-manylinux_2_28_x86_64.whl", hash = "sha256:a3f02b2795165eaf6dfe18c963519049a45a9c588488795cebc5015dac77ab46" },
-    { url = "https://download.pytorch.org/whl/cu118/torch-2.7.1%2Bcu118-cp313-cp313-win_amd64.whl", hash = "sha256:3122e59a5fe4e9ee991e7ad4e7002afa549b2873e421759df6454f20f53a6c74" },
-    { url = "https://download.pytorch.org/whl/cu118/torch-2.7.1%2Bcu118-cp313-cp313t-manylinux_2_28_x86_64.whl", hash = "sha256:627b7248b429d97b3955f1d0375aad1192b8f20f37556384848b6c622e491eb5" },
-    { url = "https://download.pytorch.org/whl/cu118/torch-2.7.1%2Bcu118-cp313-cp313t-win_amd64.whl", hash = "sha256:e06a205f15b3a045924d72f788af0664ca5f20e610eaac7162189721cf31a771" },
+    { url = "https://download-r2.pytorch.org/whl/cu118/torch-2.7.1%2Bcu118-cp310-cp310-manylinux_2_28_x86_64.whl", hash = "sha256:89433c62b02ec802d4c0887c867d935887ae8f00d7cc549ecf1c2640d096bd4c" },
+    { url = "https://download-r2.pytorch.org/whl/cu118/torch-2.7.1%2Bcu118-cp310-cp310-win_amd64.whl", hash = "sha256:af4833e36a8e964681a4dad7775f559cf043bd42c9d0c0b5e0619f9d0e44cb56" },
+    { url = "https://download-r2.pytorch.org/whl/cu118/torch-2.7.1%2Bcu118-cp311-cp311-manylinux_2_28_x86_64.whl", hash = "sha256:a596d91c747d1fa601724e85b9c8797c8d7c62140aa1acf245773e911254bc45" },
+    { url = "https://download-r2.pytorch.org/whl/cu118/torch-2.7.1%2Bcu118-cp311-cp311-win_amd64.whl", hash = "sha256:584e5ee99d29286b93be2fba3b3f1f5b9d7a4b9055a288eb31b33100a1f09ed9" },
+    { url = "https://download-r2.pytorch.org/whl/cu118/torch-2.7.1%2Bcu118-cp312-cp312-manylinux_2_28_x86_64.whl", hash = "sha256:91454dcfdb81f181fdf216d6d6d9912fbd8795578b90384b3b8b8132737072bb" },
+    { url = "https://download-r2.pytorch.org/whl/cu118/torch-2.7.1%2Bcu118-cp312-cp312-win_amd64.whl", hash = "sha256:80855ec840b7b06372ff43535d01393a8ec101842618d1f9ed629572b52aed71" },
+    { url = "https://download-r2.pytorch.org/whl/cu118/torch-2.7.1%2Bcu118-cp313-cp313-manylinux_2_28_x86_64.whl", hash = "sha256:a3f02b2795165eaf6dfe18c963519049a45a9c588488795cebc5015dac77ab46" },
+    { url = "https://download-r2.pytorch.org/whl/cu118/torch-2.7.1%2Bcu118-cp313-cp313-win_amd64.whl", hash = "sha256:3122e59a5fe4e9ee991e7ad4e7002afa549b2873e421759df6454f20f53a6c74" },
+    { url = "https://download-r2.pytorch.org/whl/cu118/torch-2.7.1%2Bcu118-cp313-cp313t-manylinux_2_28_x86_64.whl", hash = "sha256:627b7248b429d97b3955f1d0375aad1192b8f20f37556384848b6c622e491eb5" },
+    { url = "https://download-r2.pytorch.org/whl/cu118/torch-2.7.1%2Bcu118-cp313-cp313t-win_amd64.whl", hash = "sha256:e06a205f15b3a045924d72f788af0664ca5f20e610eaac7162189721cf31a771" },
 ]
 
 [[package]]
@@ -3534,21 +3633,21 @@ dependencies = [
     { name = "typing-extensions", marker = "(extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118') or (extra != 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128') or (extra != 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128')" },
 ]
 wheels = [
-    { url = "https://download.pytorch.org/whl/cu128/torch-2.7.1%2Bcu128-cp310-cp310-manylinux_2_28_aarch64.whl", hash = "sha256:aca3472608e3c92df5166537595687b53a6c997082478b372427b043dbed98d0" },
-    { url = "https://download.pytorch.org/whl/cu128/torch-2.7.1%2Bcu128-cp310-cp310-manylinux_2_28_x86_64.whl", hash = "sha256:d6c3cba198dc93f93422a8545f48a6697890366e4b9701f54351fc27e2304bd3" },
-    { url = "https://download.pytorch.org/whl/cu128/torch-2.7.1%2Bcu128-cp310-cp310-win_amd64.whl", hash = "sha256:5174f02de8ca14df87c8e333c4c39cf3ce93a323c9d470d690301d110a053b3c" },
-    { url = "https://download.pytorch.org/whl/cu128/torch-2.7.1%2Bcu128-cp311-cp311-manylinux_2_28_aarch64.whl", hash = "sha256:3a0954c54fd7cb9f45beab1272dece2a05b0e77023c1da33ba32a7919661260f" },
-    { url = "https://download.pytorch.org/whl/cu128/torch-2.7.1%2Bcu128-cp311-cp311-manylinux_2_28_x86_64.whl", hash = "sha256:c301dc280458afd95450af794924c98fe07522dd148ff384739b810e3e3179f2" },
-    { url = "https://download.pytorch.org/whl/cu128/torch-2.7.1%2Bcu128-cp311-cp311-win_amd64.whl", hash = "sha256:138c66dcd0ed2f07aafba3ed8b7958e2bed893694990e0b4b55b6b2b4a336aa6" },
-    { url = "https://download.pytorch.org/whl/cu128/torch-2.7.1%2Bcu128-cp312-cp312-manylinux_2_28_aarch64.whl", hash = "sha256:268e54db9f0bc2b7b9eb089852d3e592c2dea2facc3db494100c3d3b796549fa" },
-    { url = "https://download.pytorch.org/whl/cu128/torch-2.7.1%2Bcu128-cp312-cp312-manylinux_2_28_x86_64.whl", hash = "sha256:0b64f7d0a6f2a739ed052ba959f7b67c677028c9566ce51997f9f90fe573ddaa" },
-    { url = "https://download.pytorch.org/whl/cu128/torch-2.7.1%2Bcu128-cp312-cp312-win_amd64.whl", hash = "sha256:2bb8c05d48ba815b316879a18195d53a6472a03e297d971e916753f8e1053d30" },
-    { url = "https://download.pytorch.org/whl/cu128/torch-2.7.1%2Bcu128-cp313-cp313-manylinux_2_28_aarch64.whl", hash = "sha256:d56d29a6ad7758ba5173cc2b0c51c93e126e2b0a918e874101dc66545283967f" },
-    { url = "https://download.pytorch.org/whl/cu128/torch-2.7.1%2Bcu128-cp313-cp313-manylinux_2_28_x86_64.whl", hash = "sha256:9560425f9ea1af1791507e8ca70d5b9ecf62fed7ca226a95fcd58d0eb2cca78f" },
-    { url = "https://download.pytorch.org/whl/cu128/torch-2.7.1%2Bcu128-cp313-cp313-win_amd64.whl", hash = "sha256:500ad5b670483f62d4052e41948a3fb19e8c8de65b99f8d418d879cbb15a82d6" },
-    { url = "https://download.pytorch.org/whl/cu128/torch-2.7.1%2Bcu128-cp313-cp313t-manylinux_2_28_aarch64.whl", hash = "sha256:f112465fdf42eb1297c6dddda1a8b7f411914428b704e1b8a47870c52e290909" },
-    { url = "https://download.pytorch.org/whl/cu128/torch-2.7.1%2Bcu128-cp313-cp313t-manylinux_2_28_x86_64.whl", hash = "sha256:c355db49c218ada70321d5c5c9bb3077312738b99113c8f3723ef596b554a7b9" },
-    { url = "https://download.pytorch.org/whl/cu128/torch-2.7.1%2Bcu128-cp313-cp313t-win_amd64.whl", hash = "sha256:e27e5f7e74179fb5d814a0412e5026e4b50c9e0081e9050bc4c28c992a276eb1" },
+    { url = "https://download-r2.pytorch.org/whl/cu128/torch-2.7.1%2Bcu128-cp310-cp310-manylinux_2_28_aarch64.whl", hash = "sha256:aca3472608e3c92df5166537595687b53a6c997082478b372427b043dbed98d0" },
+    { url = "https://download-r2.pytorch.org/whl/cu128/torch-2.7.1%2Bcu128-cp310-cp310-manylinux_2_28_x86_64.whl", hash = "sha256:d6c3cba198dc93f93422a8545f48a6697890366e4b9701f54351fc27e2304bd3" },
+    { url = "https://download-r2.pytorch.org/whl/cu128/torch-2.7.1%2Bcu128-cp310-cp310-win_amd64.whl", hash = "sha256:5174f02de8ca14df87c8e333c4c39cf3ce93a323c9d470d690301d110a053b3c" },
+    { url = "https://download-r2.pytorch.org/whl/cu128/torch-2.7.1%2Bcu128-cp311-cp311-manylinux_2_28_aarch64.whl", hash = "sha256:3a0954c54fd7cb9f45beab1272dece2a05b0e77023c1da33ba32a7919661260f" },
+    { url = "https://download-r2.pytorch.org/whl/cu128/torch-2.7.1%2Bcu128-cp311-cp311-manylinux_2_28_x86_64.whl", hash = "sha256:c301dc280458afd95450af794924c98fe07522dd148ff384739b810e3e3179f2" },
+    { url = "https://download-r2.pytorch.org/whl/cu128/torch-2.7.1%2Bcu128-cp311-cp311-win_amd64.whl", hash = "sha256:138c66dcd0ed2f07aafba3ed8b7958e2bed893694990e0b4b55b6b2b4a336aa6" },
+    { url = "https://download-r2.pytorch.org/whl/cu128/torch-2.7.1%2Bcu128-cp312-cp312-manylinux_2_28_aarch64.whl", hash = "sha256:268e54db9f0bc2b7b9eb089852d3e592c2dea2facc3db494100c3d3b796549fa" },
+    { url = "https://download-r2.pytorch.org/whl/cu128/torch-2.7.1%2Bcu128-cp312-cp312-manylinux_2_28_x86_64.whl", hash = "sha256:0b64f7d0a6f2a739ed052ba959f7b67c677028c9566ce51997f9f90fe573ddaa" },
+    { url = "https://download-r2.pytorch.org/whl/cu128/torch-2.7.1%2Bcu128-cp312-cp312-win_amd64.whl", hash = "sha256:2bb8c05d48ba815b316879a18195d53a6472a03e297d971e916753f8e1053d30" },
+    { url = "https://download-r2.pytorch.org/whl/cu128/torch-2.7.1%2Bcu128-cp313-cp313-manylinux_2_28_aarch64.whl", hash = "sha256:d56d29a6ad7758ba5173cc2b0c51c93e126e2b0a918e874101dc66545283967f" },
+    { url = "https://download-r2.pytorch.org/whl/cu128/torch-2.7.1%2Bcu128-cp313-cp313-manylinux_2_28_x86_64.whl", hash = "sha256:9560425f9ea1af1791507e8ca70d5b9ecf62fed7ca226a95fcd58d0eb2cca78f" },
+    { url = "https://download-r2.pytorch.org/whl/cu128/torch-2.7.1%2Bcu128-cp313-cp313-win_amd64.whl", hash = "sha256:500ad5b670483f62d4052e41948a3fb19e8c8de65b99f8d418d879cbb15a82d6" },
+    { url = "https://download-r2.pytorch.org/whl/cu128/torch-2.7.1%2Bcu128-cp313-cp313t-manylinux_2_28_aarch64.whl", hash = "sha256:f112465fdf42eb1297c6dddda1a8b7f411914428b704e1b8a47870c52e290909" },
+    { url = "https://download-r2.pytorch.org/whl/cu128/torch-2.7.1%2Bcu128-cp313-cp313t-manylinux_2_28_x86_64.whl", hash = "sha256:c355db49c218ada70321d5c5c9bb3077312738b99113c8f3723ef596b554a7b9" },
+    { url = "https://download-r2.pytorch.org/whl/cu128/torch-2.7.1%2Bcu128-cp313-cp313t-win_amd64.whl", hash = "sha256:e27e5f7e74179fb5d814a0412e5026e4b50c9e0081e9050bc4c28c992a276eb1" },
 ]
 
 [[package]]
@@ -3566,7 +3665,7 @@ resolution-markers = [
 dependencies = [
     { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version < '3.11' and platform_machine == 'aarch64' and sys_platform == 'linux' and extra == 'extra-17-multilingual-mice-cpu') or (python_full_version < '3.11' and sys_platform == 'darwin' and extra == 'extra-17-multilingual-mice-cpu') or (python_full_version >= '3.11' and sys_platform == 'linux' and extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118') or (python_full_version >= '3.11' and sys_platform == 'linux' and extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128') or (platform_machine != 'aarch64' and sys_platform == 'linux' and extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118') or (platform_machine != 'aarch64' and sys_platform == 'linux' and extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128') or (platform_machine != 'aarch64' and sys_platform == 'linux' and extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128') or (sys_platform != 'darwin' and sys_platform != 'linux' and extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118') or (sys_platform != 'darwin' and sys_platform != 'linux' and extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128') or (sys_platform != 'darwin' and sys_platform != 'linux' and extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128') or (sys_platform == 'darwin' and extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118') or (sys_platform == 'darwin' and extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128') or (sys_platform == 'darwin' and extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128') or (sys_platform == 'linux' and extra != 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128')" },
     { name = "numpy", version = "2.3.0", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.11' and platform_machine == 'aarch64' and sys_platform == 'linux' and extra == 'extra-17-multilingual-mice-cpu') or (python_full_version >= '3.11' and sys_platform == 'darwin' and extra == 'extra-17-multilingual-mice-cpu') or (python_full_version < '3.11' and sys_platform == 'linux' and extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118') or (python_full_version < '3.11' and sys_platform == 'linux' and extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128') or (python_full_version < '3.11' and sys_platform == 'linux' and extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128') or (platform_machine != 'aarch64' and sys_platform == 'linux' and extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118') or (platform_machine != 'aarch64' and sys_platform == 'linux' and extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128') or (platform_machine != 'aarch64' and sys_platform == 'linux' and extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128') or (sys_platform != 'darwin' and sys_platform != 'linux' and extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118') or (sys_platform != 'darwin' and sys_platform != 'linux' and extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128') or (sys_platform != 'darwin' and sys_platform != 'linux' and extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128') or (sys_platform == 'darwin' and extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118') or (sys_platform == 'darwin' and extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128') or (sys_platform == 'darwin' and extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128') or (sys_platform == 'linux' and extra != 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128')" },
-    { name = "pillow", marker = "(platform_machine == 'aarch64' and sys_platform == 'linux') or sys_platform == 'darwin'" },
+    { name = "pillow", marker = "(platform_machine == 'aarch64' and sys_platform == 'linux' and extra == 'extra-17-multilingual-mice-cpu') or (platform_machine != 'aarch64' and extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118') or (platform_machine != 'aarch64' and extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128') or (platform_machine != 'aarch64' and extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128') or (sys_platform == 'darwin' and extra == 'extra-17-multilingual-mice-cpu') or (sys_platform != 'linux' and extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118') or (sys_platform != 'linux' and extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128') or (sys_platform != 'linux' and extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128') or (sys_platform == 'darwin' and extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128') or (extra != 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128')" },
     { name = "torch", version = "2.7.1", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform == 'darwin' and extra == 'extra-17-multilingual-mice-cpu') or (extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118') or (extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128') or (extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128')" },
     { name = "torch", version = "2.7.1+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(platform_machine == 'aarch64' and sys_platform == 'linux' and extra == 'extra-17-multilingual-mice-cpu') or (platform_machine != 'aarch64' and extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118') or (platform_machine != 'aarch64' and extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128') or (platform_machine != 'aarch64' and extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128') or (sys_platform != 'linux' and extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118') or (sys_platform != 'linux' and extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128') or (sys_platform != 'linux' and extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128') or (extra != 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128')" },
 ]
@@ -3595,8 +3694,8 @@ resolution-markers = [
 dependencies = [
     { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version < '3.11' and platform_machine == 'aarch64' and sys_platform == 'linux' and extra == 'extra-17-multilingual-mice-cu128') or (python_full_version >= '3.11' and extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128') or (platform_machine != 'aarch64' and extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128') or (sys_platform != 'linux' and extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128') or (extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118') or (extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128')" },
     { name = "numpy", version = "2.3.0", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.11' and platform_machine == 'aarch64' and sys_platform == 'linux' and extra == 'extra-17-multilingual-mice-cu128') or (python_full_version < '3.11' and extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128') or (platform_machine != 'aarch64' and extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128') or (sys_platform != 'linux' and extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128') or (extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118') or (extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128')" },
-    { name = "pillow", marker = "platform_machine == 'aarch64' and sys_platform == 'linux'" },
-    { name = "torch", version = "2.7.1+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "platform_machine == 'aarch64' and sys_platform == 'linux'" },
+    { name = "pillow", marker = "(platform_machine == 'aarch64' and sys_platform == 'linux' and extra == 'extra-17-multilingual-mice-cu128') or (platform_machine != 'aarch64' and extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128') or (sys_platform != 'linux' and extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128') or (extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118') or (extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128')" },
+    { name = "torch", version = "2.7.1+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "(platform_machine == 'aarch64' and sys_platform == 'linux' and extra == 'extra-17-multilingual-mice-cu128') or (platform_machine != 'aarch64' and extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128') or (sys_platform != 'linux' and extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128') or (extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118') or (extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128')" },
 ]
 wheels = [
     { url = "https://download-r2.pytorch.org/whl/cu128/torchvision-0.22.1-cp310-cp310-manylinux_2_28_aarch64.whl", hash = "sha256:3a41b87628c0d6095839c43a1dd706670e7e5a56edc5860e700e1ba22c3ef8af" },
@@ -3604,6 +3703,44 @@ wheels = [
     { url = "https://download-r2.pytorch.org/whl/cu128/torchvision-0.22.1-cp312-cp312-manylinux_2_28_aarch64.whl", hash = "sha256:2ad7fe412b821333fc05b4046263d77c14ba86f3965366adbada8dc397ea45b4" },
     { url = "https://download-r2.pytorch.org/whl/cu128/torchvision-0.22.1-cp313-cp313-manylinux_2_28_aarch64.whl", hash = "sha256:75f519ebe412ced95d727c71c30c68084cc6fd36347b88f338e88ff9d07a3ac8" },
     { url = "https://download-r2.pytorch.org/whl/cu128/torchvision-0.22.1-cp313-cp313t-manylinux_2_28_aarch64.whl", hash = "sha256:f6565fd22e04e51f9600f34a3a20b120ee9f5a73161bfcb79c826225054aa44e" },
+]
+
+[[package]]
+name = "torchvision"
+version = "0.22.1"
+source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "python_full_version >= '3.12'",
+    "python_full_version == '3.11.*'",
+    "python_full_version < '3.11'",
+]
+dependencies = [
+    { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version < '3.11' and extra != 'extra-17-multilingual-mice-cpu' and extra != 'extra-17-multilingual-mice-cu118' and extra != 'extra-17-multilingual-mice-cu128') or (extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118') or (extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128') or (extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128')" },
+    { name = "numpy", version = "2.3.0", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.11' and extra != 'extra-17-multilingual-mice-cpu' and extra != 'extra-17-multilingual-mice-cu118' and extra != 'extra-17-multilingual-mice-cu128') or (extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118') or (extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128') or (extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128')" },
+    { name = "pillow", marker = "(extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118') or (extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128') or (extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128') or (extra != 'extra-17-multilingual-mice-cpu' and extra != 'extra-17-multilingual-mice-cu118' and extra != 'extra-17-multilingual-mice-cu128')" },
+    { name = "torch", version = "2.7.1", source = { registry = "https://pypi.org/simple" }, marker = "(extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118') or (extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128') or (extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128') or (extra != 'extra-17-multilingual-mice-cpu' and extra != 'extra-17-multilingual-mice-cu118' and extra != 'extra-17-multilingual-mice-cu128')" },
+]
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/15/2c/7b67117b14c6cc84ae3126ca6981abfa3af2ac54eb5252b80d9475fb40df/torchvision-0.22.1-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:3b47d8369ee568c067795c0da0b4078f39a9dfea6f3bc1f3ac87530dfda1dd56", size = 1947825, upload-time = "2025-06-04T17:43:15.523Z" },
+    { url = "https://files.pythonhosted.org/packages/6c/9f/c4dcf1d232b75e28bc37e21209ab2458d6d60235e16163544ed693de54cb/torchvision-0.22.1-cp310-cp310-manylinux_2_28_aarch64.whl", hash = "sha256:990de4d657a41ed71680cd8be2e98ebcab55371f30993dc9bd2e676441f7180e", size = 2512611, upload-time = "2025-06-04T17:43:03.951Z" },
+    { url = "https://files.pythonhosted.org/packages/e2/99/db71d62d12628111d59147095527a0ab492bdfecfba718d174c04ae6c505/torchvision-0.22.1-cp310-cp310-manylinux_2_28_x86_64.whl", hash = "sha256:3347f690c2eed6d02aa0edfb9b01d321e7f7cf1051992d96d8d196c39b881d49", size = 7485668, upload-time = "2025-06-04T17:43:09.453Z" },
+    { url = "https://files.pythonhosted.org/packages/32/ff/4a93a4623c3e5f97e8552af0f9f81d289dcf7f2ac71f1493f1c93a6b973d/torchvision-0.22.1-cp310-cp310-win_amd64.whl", hash = "sha256:86ad938f5a6ca645f0d5fb19484b1762492c2188c0ffb05c602e9e9945b7b371", size = 1707961, upload-time = "2025-06-04T17:43:13.038Z" },
+    { url = "https://files.pythonhosted.org/packages/f6/00/bdab236ef19da050290abc2b5203ff9945c84a1f2c7aab73e8e9c8c85669/torchvision-0.22.1-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:4addf626e2b57fc22fd6d329cf1346d474497672e6af8383b7b5b636fba94a53", size = 1947827, upload-time = "2025-06-04T17:43:10.84Z" },
+    { url = "https://files.pythonhosted.org/packages/ac/d0/18f951b2be3cfe48c0027b349dcc6fde950e3dc95dd83e037e86f284f6fd/torchvision-0.22.1-cp311-cp311-manylinux_2_28_aarch64.whl", hash = "sha256:8b4a53a6067d63adba0c52f2b8dd2290db649d642021674ee43c0c922f0c6a69", size = 2514021, upload-time = "2025-06-04T17:43:07.608Z" },
+    { url = "https://files.pythonhosted.org/packages/c3/1a/63eb241598b36d37a0221e10af357da34bd33402ccf5c0765e389642218a/torchvision-0.22.1-cp311-cp311-manylinux_2_28_x86_64.whl", hash = "sha256:b7866a3b326413e67724ac46f1ee594996735e10521ba9e6cdbe0fa3cd98c2f2", size = 7487300, upload-time = "2025-06-04T17:42:58.349Z" },
+    { url = "https://files.pythonhosted.org/packages/e5/73/1b009b42fe4a7774ba19c23c26bb0f020d68525c417a348b166f1c56044f/torchvision-0.22.1-cp311-cp311-win_amd64.whl", hash = "sha256:bb3f6df6f8fd415ce38ec4fd338376ad40c62e86052d7fc706a0dd51efac1718", size = 1707989, upload-time = "2025-06-04T17:43:14.332Z" },
+    { url = "https://files.pythonhosted.org/packages/02/90/f4e99a5112dc221cf68a485e853cc3d9f3f1787cb950b895f3ea26d1ea98/torchvision-0.22.1-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:153f1790e505bd6da123e21eee6e83e2e155df05c0fe7d56347303067d8543c5", size = 1947827, upload-time = "2025-06-04T17:43:11.945Z" },
+    { url = "https://files.pythonhosted.org/packages/25/f6/53e65384cdbbe732cc2106bb04f7fb908487e4fb02ae4a1613ce6904a122/torchvision-0.22.1-cp312-cp312-manylinux_2_28_aarch64.whl", hash = "sha256:964414eef19459d55a10e886e2fca50677550e243586d1678f65e3f6f6bac47a", size = 2514576, upload-time = "2025-06-04T17:43:02.707Z" },
+    { url = "https://files.pythonhosted.org/packages/17/8b/155f99042f9319bd7759536779b2a5b67cbd4f89c380854670850f89a2f4/torchvision-0.22.1-cp312-cp312-manylinux_2_28_x86_64.whl", hash = "sha256:699c2d70d33951187f6ed910ea05720b9b4aaac1dcc1135f53162ce7d42481d3", size = 7485962, upload-time = "2025-06-04T17:42:43.606Z" },
+    { url = "https://files.pythonhosted.org/packages/05/17/e45d5cd3627efdb47587a0634179a3533593436219de3f20c743672d2a79/torchvision-0.22.1-cp312-cp312-win_amd64.whl", hash = "sha256:75e0897da7a8e43d78632f66f2bdc4f6e26da8d3f021a7c0fa83746073c2597b", size = 1707992, upload-time = "2025-06-04T17:42:53.207Z" },
+    { url = "https://files.pythonhosted.org/packages/7a/30/fecdd09fb973e963da68207fe9f3d03ec6f39a935516dc2a98397bf495c6/torchvision-0.22.1-cp313-cp313-macosx_11_0_arm64.whl", hash = "sha256:9c3ae3319624c43cc8127020f46c14aa878406781f0899bb6283ae474afeafbf", size = 1947818, upload-time = "2025-06-04T17:42:51.954Z" },
+    { url = "https://files.pythonhosted.org/packages/55/f4/b45f6cd92fa0acfac5e31b8e9258232f25bcdb0709a604e8b8a39d76e411/torchvision-0.22.1-cp313-cp313-manylinux_2_28_aarch64.whl", hash = "sha256:4a614a6a408d2ed74208d0ea6c28a2fbb68290e9a7df206c5fef3f0b6865d307", size = 2471597, upload-time = "2025-06-04T17:42:48.838Z" },
+    { url = "https://files.pythonhosted.org/packages/8d/b0/3cffd6a285b5ffee3fe4a31caff49e350c98c5963854474d1c4f7a51dea5/torchvision-0.22.1-cp313-cp313-manylinux_2_28_x86_64.whl", hash = "sha256:7ee682be589bb1a002b7704f06b8ec0b89e4b9068f48e79307d2c6e937a9fdf4", size = 7485894, upload-time = "2025-06-04T17:43:01.371Z" },
+    { url = "https://files.pythonhosted.org/packages/fd/1d/0ede596fedc2080d18108149921278b59f220fbb398f29619495337b0f86/torchvision-0.22.1-cp313-cp313-win_amd64.whl", hash = "sha256:2566cafcfa47ecfdbeed04bab8cef1307c8d4ef75046f7624b9e55f384880dfe", size = 1708020, upload-time = "2025-06-04T17:43:06.085Z" },
+    { url = "https://files.pythonhosted.org/packages/0f/ca/e9a06bd61ee8e04fb4962a3fb524fe6ee4051662db07840b702a9f339b24/torchvision-0.22.1-cp313-cp313t-macosx_11_0_arm64.whl", hash = "sha256:043d9e35ed69c2e586aff6eb9e2887382e7863707115668ac9d140da58f42cba", size = 2137623, upload-time = "2025-06-04T17:43:05.028Z" },
+    { url = "https://files.pythonhosted.org/packages/ab/c8/2ebe90f18e7ffa2120f5c3eab62aa86923185f78d2d051a455ea91461608/torchvision-0.22.1-cp313-cp313t-manylinux_2_28_aarch64.whl", hash = "sha256:27142bcc8a984227a6dcf560985e83f52b82a7d3f5fe9051af586a2ccc46ef26", size = 2476561, upload-time = "2025-06-04T17:42:59.691Z" },
+    { url = "https://files.pythonhosted.org/packages/94/8b/04c6b15f8c29b39f0679589753091cec8b192ab296d4fdaf9055544c4ec9/torchvision-0.22.1-cp313-cp313t-manylinux_2_28_x86_64.whl", hash = "sha256:ef46e065502f7300ad6abc98554131c35dc4c837b978d91306658f1a65c00baa", size = 7658543, upload-time = "2025-06-04T17:42:46.064Z" },
+    { url = "https://files.pythonhosted.org/packages/ab/c0/131628e6d42682b0502c63fd7f647b8b5ca4bd94088f6c85ca7225db8ac4/torchvision-0.22.1-cp313-cp313t-win_amd64.whl", hash = "sha256:7414eeacfb941fa21acddcd725f1617da5630ec822e498660a4b864d7d998075", size = 1629892, upload-time = "2025-06-04T17:42:57.156Z" },
 ]
 
 [[package]]
@@ -3618,8 +3755,8 @@ resolution-markers = [
 dependencies = [
     { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version < '3.11' and platform_machine != 'aarch64' and sys_platform == 'linux' and extra == 'extra-17-multilingual-mice-cpu') or (python_full_version >= '3.11' and platform_machine != 'aarch64' and extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118') or (python_full_version >= '3.11' and platform_machine != 'aarch64' and extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128') or (python_full_version < '3.11' and sys_platform != 'darwin' and sys_platform != 'linux' and extra == 'extra-17-multilingual-mice-cpu') or (python_full_version >= '3.11' and sys_platform != 'linux' and extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118') or (python_full_version >= '3.11' and sys_platform != 'linux' and extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128') or (platform_machine == 'aarch64' and sys_platform == 'linux' and extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118') or (platform_machine == 'aarch64' and sys_platform == 'linux' and extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128') or (sys_platform == 'darwin' and extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118') or (sys_platform == 'darwin' and extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128') or (sys_platform == 'darwin' and extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128') or (extra != 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128')" },
     { name = "numpy", version = "2.3.0", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.11' and platform_machine != 'aarch64' and sys_platform == 'linux' and extra == 'extra-17-multilingual-mice-cpu') or (python_full_version < '3.11' and platform_machine != 'aarch64' and extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118') or (python_full_version < '3.11' and platform_machine != 'aarch64' and extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128') or (python_full_version < '3.11' and platform_machine != 'aarch64' and extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128') or (python_full_version >= '3.11' and sys_platform != 'darwin' and sys_platform != 'linux' and extra == 'extra-17-multilingual-mice-cpu') or (python_full_version < '3.11' and sys_platform != 'linux' and extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118') or (python_full_version < '3.11' and sys_platform != 'linux' and extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128') or (python_full_version < '3.11' and sys_platform != 'linux' and extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128') or (platform_machine == 'aarch64' and sys_platform == 'linux' and extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118') or (platform_machine == 'aarch64' and sys_platform == 'linux' and extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128') or (sys_platform == 'darwin' and extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118') or (sys_platform == 'darwin' and extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128') or (sys_platform == 'darwin' and extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128') or (extra != 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128')" },
-    { name = "pillow", marker = "(platform_machine != 'aarch64' and sys_platform == 'linux') or (sys_platform != 'darwin' and sys_platform != 'linux')" },
-    { name = "torch", version = "2.7.1+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(platform_machine != 'aarch64' and sys_platform == 'linux') or (sys_platform != 'darwin' and sys_platform != 'linux')" },
+    { name = "pillow", marker = "(platform_machine != 'aarch64' and sys_platform == 'linux' and extra == 'extra-17-multilingual-mice-cpu') or (sys_platform != 'darwin' and sys_platform != 'linux' and extra == 'extra-17-multilingual-mice-cpu') or (sys_platform == 'darwin' and extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118') or (sys_platform == 'darwin' and extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128') or (sys_platform == 'darwin' and extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128') or (sys_platform == 'linux' and extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118') or (sys_platform == 'linux' and extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128') or (extra != 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128')" },
+    { name = "torch", version = "2.7.1+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(platform_machine != 'aarch64' and sys_platform == 'linux' and extra == 'extra-17-multilingual-mice-cpu') or (sys_platform != 'darwin' and sys_platform != 'linux' and extra == 'extra-17-multilingual-mice-cpu') or (sys_platform == 'darwin' and extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118') or (sys_platform == 'darwin' and extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128') or (sys_platform == 'darwin' and extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128') or (sys_platform == 'linux' and extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118') or (sys_platform == 'linux' and extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128') or (extra != 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128')" },
 ]
 wheels = [
     { url = "https://download-r2.pytorch.org/whl/cpu/torchvision-0.22.1%2Bcpu-cp310-cp310-manylinux_2_28_x86_64.whl", hash = "sha256:e31f1273a8dd9760906288036ac3c8f5fef25eed393da0491db150d7be78910d" },
@@ -3646,8 +3783,8 @@ resolution-markers = [
 dependencies = [
     { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version < '3.11' and extra == 'extra-17-multilingual-mice-cu118') or (extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118') or (extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128') or (extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128')" },
     { name = "numpy", version = "2.3.0", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.11' and extra == 'extra-17-multilingual-mice-cu118') or (extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128') or (extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118') or (extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128')" },
-    { name = "pillow" },
-    { name = "torch", version = "2.7.1+cu118", source = { registry = "https://download.pytorch.org/whl/cu118" } },
+    { name = "pillow", marker = "extra == 'extra-17-multilingual-mice-cu118' or (extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128')" },
+    { name = "torch", version = "2.7.1+cu118", source = { registry = "https://download.pytorch.org/whl/cu118" }, marker = "extra == 'extra-17-multilingual-mice-cu118' or (extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128')" },
 ]
 wheels = [
     { url = "https://download-r2.pytorch.org/whl/cu118/torchvision-0.22.1%2Bcu118-cp310-cp310-manylinux_2_28_x86_64.whl", hash = "sha256:64954400493caf614b5aebded9b5a63eda8753cea9f8a1e32752eb2adc6ed383" },
@@ -3674,8 +3811,8 @@ resolution-markers = [
 dependencies = [
     { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version < '3.11' and platform_machine != 'aarch64' and extra == 'extra-17-multilingual-mice-cu128') or (python_full_version < '3.11' and sys_platform != 'linux' and extra == 'extra-17-multilingual-mice-cu128') or (extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118') or (extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128') or (extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128')" },
     { name = "numpy", version = "2.3.0", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.11' and platform_machine != 'aarch64' and extra == 'extra-17-multilingual-mice-cu128') or (python_full_version < '3.11' and platform_machine != 'aarch64' and extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128') or (python_full_version >= '3.11' and sys_platform != 'linux' and extra == 'extra-17-multilingual-mice-cu128') or (platform_machine == 'aarch64' and extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128') or (sys_platform != 'linux' and extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128') or (extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118') or (extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128')" },
-    { name = "pillow", marker = "platform_machine != 'aarch64' or sys_platform != 'linux'" },
-    { name = "torch", version = "2.7.1+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "platform_machine != 'aarch64' or sys_platform != 'linux'" },
+    { name = "pillow", marker = "(platform_machine != 'aarch64' and extra == 'extra-17-multilingual-mice-cu128') or (sys_platform != 'linux' and extra != 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128') or (sys_platform != 'linux' and extra != 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128') or (extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118') or (extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128') or (extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128')" },
+    { name = "torch", version = "2.7.1+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "(platform_machine != 'aarch64' and extra == 'extra-17-multilingual-mice-cu128') or (sys_platform != 'linux' and extra != 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128') or (sys_platform != 'linux' and extra != 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128') or (extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu118') or (extra == 'extra-17-multilingual-mice-cpu' and extra == 'extra-17-multilingual-mice-cu128') or (extra == 'extra-17-multilingual-mice-cu118' and extra == 'extra-17-multilingual-mice-cu128')" },
 ]
 wheels = [
     { url = "https://download-r2.pytorch.org/whl/cu128/torchvision-0.22.1%2Bcu128-cp310-cp310-manylinux_2_28_x86_64.whl", hash = "sha256:538f4db667286d939b4eee0a66d31ed21b51186668006b0e0ffe20338ecc7e00" },

@@ -28,7 +28,7 @@ import os, re
 from typing import List, Optional, Any
 
 # Local imports
-from .task_loader import load_chilean_hate, load_42k_hcuch
+from .task_loader import load_chilean_hate, load_42k_hcuch, load_mimic_cxr
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -68,7 +68,14 @@ def get_shared_parsers():
         required=True,
         help="Name of task. Currently, only RACE, IMDB, \
                 Newsgroups and ChileanHate are supported.",
-        choices=["race", "imdb", "newsgroups", "chileanhate", "42k_hcuch"],
+        choices=[
+            "race",
+            "imdb",
+            "newsgroups",
+            "chileanhate",
+            "42k_hcuch",
+            "BoSsa-MIMIC-CXR-1024",
+        ],
     )
     meta_parser.add_argument(
         "-data_dir",
@@ -122,9 +129,26 @@ def get_shared_parsers():
     model_parser.add_argument(
         "-lora",
         default=False,
-        type=bool,
+        action="store_true",
         help="Whether to use Low Rank Adaptation for the editor model.",
     )
+    model_parser.add_argument(
+        "-embedding_attr",
+        default="base_model.embeddings",
+        help="Dotted path to text embedding layer on the predictor model.",
+    )
+    model_parser.add_argument(
+        "-multimodal",
+        default=False,
+        action="store_true",
+        help="Use multimodal editor with vision encoder",
+    )
+    model_parser.add_argument("-vision_embed_dim", default=768, type=int)
+    model_parser.add_argument("-num_perceiver_latents", default=64, type=int)
+    model_parser.add_argument("-perceiver_depth", default=6, type=int)
+    model_parser.add_argument("-freeze_vision", default=False, action="store_true")
+    model_parser.add_argument("-freeze_lm", default=False, action="store_true")
+
     return {"meta": meta_parser, "mask": mask_parser, "model": model_parser}
 
 
@@ -316,7 +340,14 @@ def clean_text(
 
 
 def get_dataset_reader(task_name, split="train", data_dir="data"):
-    task_options = ["imdb", "race", "newsgroups", "chileanhate", "42k_hcuch"]
+    task_options = [
+        "imdb",
+        "race",
+        "newsgroups",
+        "chileanhate",
+        "42k_hcuch",
+        "BoSsa-MIMIC-CXR-1024",
+    ]
     if task_name not in task_options:
         raise NotImplementedError(
             f"Task {task_name} not implemented; \
@@ -348,6 +379,8 @@ def get_dataset_reader(task_name, split="train", data_dir="data"):
             os.path.join(task_data_dir, "labeled_data_3-label_validation.csv"),
         ]
         return load_42k_hcuch(data_files=data_files)[split]  # .map(clean_text)
+    elif task_name == "BoSsa-MIMIC-CXR-1024":
+        return load_mimic_cxr(split=split)
 
 
 # Languages format
@@ -450,13 +483,54 @@ def get_token_char_span(encoding, tokenizer, token_index):
     return (None, None)
 
 
-def load_base_editor(model_name, max_length=700, editor_path=None, lora=False):
+def load_base_editor(
+    model_name,
+    max_length=700,
+    editor_path=None,
+    lora=False,
+    multimodal=False,
+    multimodal_args=None,
+):
     editor_model_path = editor_path if editor_path else model_name
     if model_name not in AVAILABLE_MODELS:
         raise NotImplementedError(
             f"Model {model_name} not implemented; \
                 must be one of {AVAILABLE_MODELS}"
         )
+
+    if multimodal:
+        logger.info("Loading MultiModal Model")
+        from .multimodal import MultimodalT5ForConditionalGeneration
+
+        mm_args = multimodal_args or {}
+        vision_config = {
+            "embed_dim": mm_args.get("vision_embed_dim", 768),
+        }
+        model = MultimodalT5ForConditionalGeneration(
+            t5_model_name=editor_model_path,
+            vision_config=vision_config,
+            num_perceiver_latents=mm_args.get("num_perceiver_latents", 64),
+            perceiver_depth=mm_args.get("perceiver_depth", 6),
+            freeze_vision=mm_args.get("freeze_vision", False),
+            freeze_t5=mm_args.get("freeze_lm", False),
+        )
+        # Tokenizer — reuse existing logic based on model name
+        if "mt5-" in model_name:
+            tokenizer = T5TokenizerFast.from_pretrained(
+                "Dhurmir/patched-mt5-tokenizer",
+                extra_ids=0,
+                model_max_length=max_length,
+                truncation=True,
+                padding=True,
+            )
+        else:
+            tokenizer = T5TokenizerFast.from_pretrained(
+                model_name,
+                model_max_length=max_length,
+                truncation=True,
+                padding=True,
+            )
+        return tokenizer, model
 
     if lora and editor_path:
         logger.info("Loading LoRa Model")

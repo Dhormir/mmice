@@ -7,7 +7,7 @@ requires-python = ">=3.10.9"
 dependencies = [
     "accelerate>=1.7.0",
     "datasets>=3.6.0",
-    "huggingface-hub[hf-xet]>=0.32.5",
+    "huggingface-hub[cli,hf-xet]>=0.32.5",
     "ipykernel>=6.29.5",
     "ipywidgets>=8.1.7",
     "mauve-text>=0.4.0",
@@ -15,6 +15,7 @@ dependencies = [
     "munch>=4.0.0",
     "nltk>=3.9.1",
     "numpy>=2.2.6",
+    "open-clip-torch>=3.3.0",
     "pandas>=2.3.0",
     "peft>=0.15.2",
     "pip>=25.1.1",
@@ -22,6 +23,7 @@ dependencies = [
     "sentencepiece>=0.2.0",
     "spacy>=3.8.7",
     "torch>=2.7.1",
+    "torchvision>=0.22.1",
     "tqdm>=4.67.1",
     "transformers>=4.52.4",
 ]
