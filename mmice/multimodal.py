@@ -9,6 +9,7 @@ from transformers.models.t5.modeling_t5 import (
     T5LayerCrossAttention,
     T5LayerFF,
 )
+import os
 
 
 ############# Vision Encoder #################
@@ -697,3 +698,18 @@ class MultimodalT5ForConditionalGeneration(nn.Module):
                         delattr(layer, "_current_visual_features")
 
         return outputs
+
+    def save_pretrained(self, path):
+        """Save model weights compatible with torch load."""
+        os.makedirs(path, exist_ok=True)
+        torch.save(self.state_dict(), os.path.join(path, "model.pt"))
+        # Also save the inner T5 separately for easier loading
+        self.t5.save_pretrained(os.path.join(path, "t5"))
+
+    @classmethod
+    def load_pretrained(cls, path, **kwargs):
+        """Load model weights."""
+        model = cls(**kwargs)
+        state_dict = torch.load(os.path.join(path, "model.pt"), map_location="cpu")
+        model.load_state_dict(state_dict)
+        return model

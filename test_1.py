@@ -4,7 +4,7 @@ from pathlib import Path
 import os
 
 # Set cache to current repo
-os.environ["HF_HOME"] = str(Path.cwd() / ".cache")
+os.environ["HF_HOME"] = "/content/drive/MyDrive/mmice_data"
 
 # Local imports
 from mmice.stage_one import run_train_editor

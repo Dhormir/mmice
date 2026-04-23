@@ -189,6 +189,7 @@ def get_datasets(
             targets=train_csv["targets"],
             image_paths=train_image_paths,
             lang=args.meta.lang,
+            local_image_dir="/content/local_images",
         )
         val_dataset = StageOneDataset(
             editor_tokenizer,
@@ -197,6 +198,7 @@ def get_datasets(
             targets=val_csv["targets"],
             image_paths=val_image_paths,
             lang=args.meta.lang,
+            local_image_dir="/content/local_images",
         )
 
     # Else, create data by calling create_inputs() function in dataset.py

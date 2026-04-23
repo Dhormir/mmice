@@ -91,7 +91,7 @@ def load_mimic_cxr(split="train", transform=BIOMED_CLIP_TRANSFORM):
     ds = load_dataset(
         "BoSsa-Projects/MIMIC-CXR-1024",
         split="train[:10000]",
-        cache_dir="data",
+        cache_dir="/content/drive/MyDrive/mmice_data",
     )
 
     # Normalize columns to match MMiCE convention

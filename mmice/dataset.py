@@ -3,6 +3,8 @@ from torch.utils.data import Dataset
 from tqdm.auto import tqdm
 import numpy as np
 import logging
+import shutil
+import subprocess
 import os
 
 # Local imports
@@ -34,6 +36,7 @@ class StageOneDataset(Dataset):
         targets=None,
         image_paths=None,
         lang="en",
+        local_image_dir=None,
     ):
         self.tokenizer = tokenizer
         self.masked_strings = masked_strings
@@ -41,6 +44,36 @@ class StageOneDataset(Dataset):
         self.image_paths = image_paths
         self.max_length = max_length
         self.lang = lang
+        if image_paths is not None and local_image_dir is not None:
+            image_paths = self._localize_images(image_paths, local_image_dir)
+
+        self.image_paths = image_paths
+
+    def _localize_images(self, image_paths, local_dir):
+        os.makedirs(local_dir, exist_ok=True)
+        unique_paths = set(image_paths)
+        parent = os.path.basename(os.path.dirname(next(iter(unique_paths))))
+        dest_dir = os.path.join(local_dir, parent)
+
+        if os.path.exists(dest_dir) and len(os.listdir(dest_dir)) == len(unique_paths):
+            logger.info(f"Local images already exist in {dest_dir}, skipping.")
+        else:
+            source_dir = os.path.dirname(next(iter(unique_paths)))
+            tar_path = source_dir + ".tar"
+            if os.path.exists(tar_path):
+                logger.info(f"Extracting {tar_path} to {local_dir}")
+                subprocess.run(["tar", "-xf", tar_path, "-C", local_dir], check=True)
+            else:
+                os.makedirs(dest_dir, exist_ok=True)
+                for p in tqdm(unique_paths, desc="Copying images to local disk"):
+                    local_p = os.path.join(dest_dir, os.path.basename(p))
+                    if not os.path.exists(local_p):
+                        shutil.copy2(p, local_p)
+
+        path_map = {
+            p: os.path.join(dest_dir, os.path.basename(p)) for p in unique_paths
+        }
+        return [path_map[p] for p in image_paths]
 
     def __len__(self):
         return len(self.masked_strings)
