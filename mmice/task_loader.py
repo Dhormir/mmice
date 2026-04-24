@@ -90,7 +90,7 @@ def load_mimic_cxr(split="train", transform=BIOMED_CLIP_TRANSFORM):
     print("Loading dataset")
     ds = load_dataset(
         "BoSsa-Projects/MIMIC-CXR-1024",
-        split="train[:10000]",
+        split="train[:10000]" if split == "train" else split,
         cache_dir="/content/drive/MyDrive/mmice_data",
     )
 

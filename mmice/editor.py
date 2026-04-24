@@ -52,6 +52,7 @@ class Editor:
         self.num_beams = num_beams
         self.prepend_label = prepend_label
         self.lang = lang
+        self.current_images = None
 
     def get_editor_input(self, targ_pred_label, masked_editable_seg):
         """Format input for editor"""
@@ -122,6 +123,7 @@ class Editor:
             grad_pred_idx,
             editor_tokenized,
             num_return_toks=len(editor_tokenized.input_ids[0]),
+            images=self.current_images,
         )
 
         return sorted_token_indices
@@ -327,7 +329,7 @@ class Editor:
         for token, sentinel_tok in zip(orig_tokens, orig_sentinel_toks[:-1]):
             if sentinel_tok in temp_gen:
                 temp_gen = temp_gen.replace(sentinel_tok, token)
-        return temp_gen, self.predictor(temp_gen)[0]
+        return temp_gen, self.predictor(temp_gen, images=self.current_images)[0]
 
     def _sample_edits(
         self,
@@ -429,6 +431,7 @@ class Editor:
                         output = self.editor_model.generate(
                             input_ids=masked_token_ids_tensor,
                             num_beams=num_beams,
+                            images=self.current_images,
                             num_return_sequences=num_return_seqs,
                             no_repeat_ngram_size=self.no_repeat_ngram_size,
                             eos_token_id=end_token_id,
@@ -441,6 +444,7 @@ class Editor:
                     elif self.generate_type == "sample":
                         output = self.editor_model.generate(
                             input_ids=masked_token_ids_tensor,
+                            images=self.current_images,
                             do_sample=True,
                             top_p=self.top_p,
                             top_k=self.top_k,

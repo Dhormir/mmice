@@ -507,13 +507,21 @@ def load_base_editor(
             "embed_dim": mm_args.get("vision_embed_dim", 768),
         }
         model = MultimodalT5ForConditionalGeneration(
-            t5_model_name=editor_model_path,
+            t5_model_name=model_name,
             vision_config=vision_config,
             num_perceiver_latents=mm_args.get("num_perceiver_latents", 64),
             perceiver_depth=mm_args.get("perceiver_depth", 6),
             freeze_vision=mm_args.get("freeze_vision", False),
             freeze_t5=mm_args.get("freeze_lm", False),
         )
+        # Load trained weights if checkpoint exists
+        if editor_path:
+            weight_path = editor_path
+            if os.path.isdir(editor_path):
+                weight_path = os.path.join(editor_path, "model.pt")
+            logger.info(f"Loading multimodal weights from: {weight_path}")
+            state_dict = torch.load(weight_path, map_location="cpu")
+            model.load_state_dict(state_dict)
         # Tokenizer — reuse existing logic based on model name
         if "mt5-" in model_name:
             tokenizer = T5TokenizerFast.from_pretrained(

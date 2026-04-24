@@ -186,12 +186,19 @@ def sort_instances_by_score(scores, *args):
     return list(zipped)
 
 
-def get_scores(predictor, instance_candidates, contrast_pred_idx, k=None):
+def get_scores(predictor, instance_candidates, contrast_pred_idx, k=None, images=None):
     """Gets (top k) predicted probs of contrast_pred_idx on candidates."""
     instance_candidates.to(predictor.device)
     # Get predictions
     with torch.no_grad():
-        outputs = predictor.model(**instance_candidates)
+        forward_kwargs = dict(instance_candidates)
+        if images is not None:
+            batch_size = instance_candidates["input_ids"].shape[0]
+            img = images.unsqueeze(0) if images.dim() == 3 else images
+            if img.shape[0] == 1:
+                img = img.expand(batch_size, -1, -1, -1)
+            forward_kwargs["images"] = img.to(predictor.device)
+        outputs = predictor.model(**forward_kwargs)
         outputs = add_probs(outputs)
         probs = outputs["score"]
     if k:
@@ -317,7 +324,11 @@ class EditFinder:
             return False
 
         probs, pred_indices, highest_indices = get_scores(
-            self.predictor, instance_cands, contrast_pred_idx, k=self.beam_width
+            self.predictor,
+            instance_cands,
+            contrast_pred_idx,
+            k=self.beam_width,
+            images=self.editor.current_images,
         )
         is_multilabel = (
             self.predictor.model.config.problem_type == "multi_label_classification"
@@ -493,7 +504,12 @@ class EditFinder:
         return found_cand
 
     def minimally_edit(
-        self, orig_input, contrast_pred_idx=1, max_edit_rounds=10, edit_evaluator=None
+        self,
+        orig_input,
+        contrast_pred_idx=1,
+        max_edit_rounds=10,
+        edit_evaluator=None,
+        images=None,
     ):
         """Gets minimal edits for given input.
         Calls search algorithm (linear/binary) based on self.search_method.
@@ -502,6 +518,7 @@ class EditFinder:
 
         Returns EditList() object."""
 
+        self.editor.current_images = images
         # Get truncated editable part of input
         editable_seg = orig_input
         editable_seg = self.editor.truncate_editable_segs(
@@ -513,7 +530,7 @@ class EditFinder:
 
         start_time = time.time()
         # Multilabel and multiclass works the same way
-        orig_preds = self.predictor(editable_seg)[0]
+        orig_preds = self.predictor(editable_seg, images=images)[0]
         logger.info(f"orig_preds: {orig_preds}")
         # transformers pipeline always return in decreasing order
         orig_pred_label = orig_preds[0]["label"]

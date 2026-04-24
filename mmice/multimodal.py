@@ -357,7 +357,7 @@ class T5DecoderLayerWithVision(nn.Module):
             )
             hidden_states = cross_attention_outputs[0]
 
-        # Visual cross-attention (NEW!)
+        # Visual cross-attention
         if self.has_visual_attention and visual_features is not None:
             hidden_states = self.visual_cross_attention(
                 hidden_states=hidden_states,
@@ -457,20 +457,15 @@ class T5DecoderBlockWrapper(nn.Module):
         # Extract hidden states
         hidden_states = outputs[0]
 
-        # Apply visual cross-attention if available
-        if self.has_visual_attention:
-            # Check if visual features are cached in this layer
-            if hasattr(self, "_current_visual_features"):
-                hidden_states = self.visual_cross_attention(
-                    hidden_states=hidden_states,
-                    visual_features=self._current_visual_features,
-                )
-            elif visual_features is not None:
-                # Use visual features passed as argument
-                hidden_states = self.visual_cross_attention(
-                    hidden_states=hidden_states,
-                    visual_features=visual_features,
-                )
+        # Where you call visual_cross_attention, before the call:
+        if hasattr(self, "visual_cross_attention") and hasattr(
+            self, "_current_visual_features"
+        ):
+            visual_features = self._current_visual_features
+            # Expand to match decoder batch (beam search expands batch by num_beams)
+            if visual_features.shape[0] != hidden_states.shape[0]:
+                visual_features = visual_features.expand(hidden_states.shape[0], -1, -1)
+            hidden_states = self.visual_cross_attention(hidden_states, visual_features)
 
         # Return in same format as original
         return (hidden_states,) + outputs[1:]
@@ -599,24 +594,15 @@ class MultimodalT5ForConditionalGeneration(nn.Module):
         print("T5 layers frozen (except visual cross-attention)")
 
     def encode_images(self, images: torch.Tensor) -> torch.Tensor:
-        """
-        Encode images to visual features
+        # Move to same device as model
+        images = images.to(self.vision_encoder.patch_embed.weight.device)
+        if images.dim() == 3:
+            images = images.unsqueeze(0)
 
-        Args:
-            images: (batch_size, channels, height, width)
-        Returns:
-            visual_features: (batch_size, num_visual_tokens, hidden_size)
-        """
-        # Vision encoder
         visual_features = self.vision_encoder(images)
-
-        # Optional perceiver resampler
         if self.use_perceiver:
             visual_features = self.perceiver(visual_features)
-
-        # Project to T5 dimension
         visual_features = self.visual_projection(visual_features)
-
         return visual_features
 
     def forward(

@@ -23,9 +23,6 @@ from .edit_finder import EditFinder, EditEvaluator
 from .editor import Editor, RaceEditor
 from .maskers.gradient_masker import GradientMasker
 
-# Re-wrap stdout with UTF-8 encoding
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
-
 logging.basicConfig(
     level=logging.INFO,
     format="[%(filename)s:%(lineno)s - %(funcName)20s() ] %(message)s",
@@ -86,17 +83,20 @@ def check_editor_path(editor_path):
     return editor_path
 
 
-def load_models(args):
+def load_models(args, predictor=None):
     """Loads Predictor and Editor by task and other args"""
 
     logger.info("Loading models...")
-    predictor = load_predictor(args.meta.task, args.meta.predictors_dir)
+    if predictor is None:
+        predictor = load_predictor(args.meta.task, args.meta.predictors_dir)
     editor_path = check_editor_path(args.meta.editor_path)
     editor_tokenizer, editor_model = load_base_editor(
         model_name=args.model.model_name,
         max_length=args.model.model_max_length,
         editor_path=editor_path,
         lora=args.model.lora,
+        multimodal=getattr(args.model, "multimodal", False),
+        multimodal_args=vars(args.model),
     )
     device = get_device()
     editor_model = editor_model.to(device)
@@ -110,6 +110,7 @@ def load_models(args):
         args.model.model_max_length,
         grad_type=args.mask.grad_type,
         sign_direction=sign_direction,
+        embedding_attr=getattr(args.model, "embedding_attr", "base_model.embeddings"),
     )
 
     if "race" in args.meta.task:
@@ -170,7 +171,7 @@ def edit_indices(out_file, inputs):
     return input_indices
 
 
-def run_edit_test(args):
+def run_edit_test(args, predictor=None):
     """Runs Stage 2 on test inputs by task."""
     task_dir = os.path.join(args.meta.results_dir, args.meta.task)
     stage_two_dir = os.path.join(task_dir, f"edits/{args.meta.stage2_exp}")
@@ -192,7 +193,7 @@ def run_edit_test(args):
     write_args(args_path, args)
 
     # Load models and Edit objects
-    editor, predictor = load_models(args)
+    editor, predictor = load_models(args, predictor=predictor)
     dr = get_dataset_reader(args.meta.task, split="test", data_dir=args.meta.data_dir)
     dr = (
         dr.shuffle(seed=42).select(range(args.misc.n_samples))
@@ -212,6 +213,9 @@ def run_edit_test(args):
     )
 
     inputs = dr["text"]
+    # Load images if available (multimodal)
+    has_images = "image" in dr.column_names
+
     if "race" not in args.meta.task:
         # we check whether the input is empty??
         inputs = [x for x in inputs if len(x) > 0 and re.search("[a-zA-Z]", x)]
@@ -243,6 +247,7 @@ def run_edit_test(args):
             writer.writerow(fieldnames)
         for _, i in tqdm(enumerate(input_indices), total=len(input_indices)):
             inp = inputs[i]
+            image = dr[i]["image"] if has_images else None
             logger.info(wrap_text(f"ORIGINAL INSTANCE ({i}): {inp}"))
             start_time = time.time()
             error = False
@@ -254,6 +259,7 @@ def run_edit_test(args):
                     inp,
                     max_edit_rounds=args.search.max_edit_rounds,
                     edit_evaluator=edit_evaluator,
+                    images=image,
                 )
                 logger.info("successful round")
                 torch.cuda.empty_cache()
