@@ -5,6 +5,7 @@ import os
 import csv
 from tqdm.auto import tqdm
 import re
+import json
 import numpy as np
 import time
 import logging
@@ -31,6 +32,35 @@ logger = logging.getLogger(__name__)
 
 # Random Number Generator
 RNG = np.random.default_rng(seed=42)
+
+
+def get_stage_two_dir(args):
+    """results_dir/<task>/edits[/<eval_task>]/<stage2_exp>"""
+    eval_task = getattr(args.meta, "eval_task", None) or args.meta.task
+    task_dir = os.path.join(args.meta.results_dir, args.meta.task)
+    sub = "" if eval_task == args.meta.task else eval_task
+    return os.path.join(task_dir, "edits", sub, args.meta.stage2_exp)
+
+
+def filter_editable_rows(dr, task):
+    if "race" in task:
+        return dr
+    texts = dr["text"]
+    keep = [j for j, x in enumerate(texts) if x and re.search("[a-zA-Z]", x)]
+    return dr.select(keep)
+
+
+def get_extra_values(row, extra_columns):
+    vals = []
+    for col in extra_columns:
+        if col in row:
+            v = row[col]
+        elif isinstance(row.get("objects"), dict) and col in row["objects"]:
+            v = row["objects"][col]  # e.g. bbox -> objects["bbox"]
+        else:
+            v = None
+        vals.append(json.dumps(v, default=str))
+    return vals
 
 
 def get_grad_sign_direction(grad_type, grad_pred):
@@ -152,6 +182,24 @@ def load_models(args, predictor=None):
 def edit_indices(out_file, inputs):
     """Helper Function to resume previous work from edits file
     returns non used indices"""
+    CORE_COLUMNS = [
+        "data_idx",
+        "sorted_idx",
+        "orig_pred",
+        "new_pred",
+        "contrast_pred",
+        "orig_contrast_prob_pred",
+        "new_contrast_prob_pred",
+        "orig_input",
+        "edited_input",
+        "orig_editable_seg",
+        "edited_editable_seg",
+        "minimality",
+        "num_edit_rounds",
+        "mask_frac",
+        "duration",
+        "error",
+    ]
     input_indices = np.arange(len(inputs))
     if os.path.isfile(out_file):
         logger.info("Previously saved file found")
@@ -162,7 +210,7 @@ def edit_indices(out_file, inputs):
             lineterminator="\n",
             on_bad_lines="warn",
             encoding="utf-8",
-        ).dropna()
+        ).dropna(subset=CORE_COLUMNS)
         previous_indices = edits["data_idx"].unique().astype(np.int64)
         input_indices = np.array(list(set(input_indices) - set(previous_indices)))
     else:
@@ -174,7 +222,9 @@ def edit_indices(out_file, inputs):
 def run_edit_test(args, predictor=None):
     """Runs Stage 2 on test inputs by task."""
     task_dir = os.path.join(args.meta.results_dir, args.meta.task)
-    stage_two_dir = os.path.join(task_dir, f"edits/{args.meta.stage2_exp}")
+    eval_task = args.meta.eval_task or args.meta.task
+    task_dir = os.path.join(args.meta.results_dir, args.meta.task)
+    stage_two_dir = get_stage_two_dir(args)
 
     if not os.path.exists(stage_two_dir):
         os.makedirs(stage_two_dir)
@@ -194,7 +244,7 @@ def run_edit_test(args, predictor=None):
 
     # Load models and Edit objects
     editor, predictor = load_models(args, predictor=predictor)
-    dr = get_dataset_reader(args.meta.task, split="test", data_dir=args.meta.data_dir)
+    dr = get_dataset_reader(eval_task, split="test", data_dir=args.meta.data_dir)
     dr = (
         dr.shuffle(seed=42).select(range(args.misc.n_samples))
         if args.misc.n_samples != 0
@@ -212,18 +262,16 @@ def run_edit_test(args, predictor=None):
         min_metric=args.search.min_metric,
     )
 
-    inputs = dr["text"]
     # Load images if available (multimodal)
     has_images = "image" in dr.column_names
-
-    if "race" not in args.meta.task:
-        # we check whether the input is empty??
-        inputs = [x for x in inputs if len(x) > 0 and re.search("[a-zA-Z]", x)]
+    dr = filter_editable_rows(dr, eval_task)
+    inputs = dr["text"]
+    extra_columns = args.misc.extra_columns
 
     input_indices = edit_indices(out_file, inputs)
     logger.info(f"inputs: {len(inputs)}, input_indices: {len(input_indices)}")
     # Find edits and write to file
-    with open(out_file, "a", encoding="utf-8") as csv_file:
+    with open(out_file, "a", encoding="utf-8", newline="") as csv_file:
         fieldnames = [
             "data_idx",
             "sorted_idx",
@@ -241,13 +289,14 @@ def run_edit_test(args, predictor=None):
             "mask_frac",
             "duration",
             "error",
-        ]
-        writer = csv.writer(csv_file, delimiter="\t")
+        ] + extra_columns
+        writer = csv.writer(csv_file, delimiter="\t", lineterminator="\n")
         if len(inputs) == len(input_indices):
             writer.writerow(fieldnames)
         for _, i in tqdm(enumerate(input_indices), total=len(input_indices)):
             inp = inputs[i]
             image = dr[i]["image"] if has_images else None
+            extra_vals = get_extra_values(dr[i], extra_columns)
             logger.info(wrap_text(f"ORIGINAL INSTANCE ({i}): {inp}"))
             start_time = time.time()
             error = False
@@ -292,6 +341,7 @@ def run_edit_test(args, predictor=None):
                         duration,
                         error,
                     ]
+                    + extra_vals
                 )
                 csv_file.flush()
                 os.fsync(csv_file.fileno())
@@ -316,6 +366,7 @@ def run_edit_test(args, predictor=None):
                         duration,
                         error,
                     ]
+                    + extra_vals
                 )
                 csv_file.flush()
                 os.fsync(csv_file.fileno())

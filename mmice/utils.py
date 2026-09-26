@@ -28,7 +28,7 @@ import os, re
 from typing import List, Optional, Any
 
 # Local imports
-from .task_loader import load_chilean_hate, load_42k_hcuch, load_mimic_cxr
+from .task_loader import load_chilean_hate, load_42k_hcuch, load_mimic_cxr, load_ms_cxr
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -279,6 +279,19 @@ def get_parsers_by_stage(stage="stage1"):
             help="Stage 2 experiment name. Used to create subdir within \
                         stage 1 directory for editing results.",
         )
+        parsers["meta"].add_argument(
+            "-eval_task",
+            default=None,
+            choices=["BoSsa-MIMIC-CXR-1024", "BoSsa-MS-CXR"],
+            help="Dataset to generate edits on. Defaults to -task. Lets you "
+            "explain a predictor trained on one task using another dataset.",
+        )
+        parsers["misc"].add_argument(
+            "-extra_columns",
+            nargs="*",
+            default=[],
+            help="Dataset columns copied (as JSON) into edits.csv, e.g. objects bbox",
+        )
     return parsers
 
 
@@ -347,6 +360,7 @@ def get_dataset_reader(task_name, split="train", data_dir="data"):
         "chileanhate",
         "42k_hcuch",
         "BoSsa-MIMIC-CXR-1024",
+        "BoSsa-MS-CXR",
     ]
     if task_name not in task_options:
         raise NotImplementedError(
@@ -381,6 +395,8 @@ def get_dataset_reader(task_name, split="train", data_dir="data"):
         return load_42k_hcuch(data_files=data_files)[split]  # .map(clean_text)
     elif task_name == "BoSsa-MIMIC-CXR-1024":
         return load_mimic_cxr(split=split)
+    elif task_name == "BoSsa-MS-CXR":
+        return load_ms_cxr(split=split, cache_dir=data_dir)
 
 
 # Languages format

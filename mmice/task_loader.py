@@ -106,3 +106,23 @@ def load_mimic_cxr(split="train", transform=BIOMED_CLIP_TRANSFORM):
 
         ds.set_transform(apply_transform)
     return ds
+
+
+def load_ms_cxr(
+    split="test",
+    transform=BIOMED_CLIP_TRANSFORM,
+    cache_dir="/content/drive/MyDrive/mmice_data",
+):
+    """MS-CXR phrase-grounding set. It only has a 'train' HF split (1045 rows),
+    so `split` is ignored and every row is used as evaluation data."""
+    ds = load_dataset("BoSsa-Projects/MS-CXR", split="train", cache_dir=cache_dir)
+
+    if transform is not None:
+
+        def apply_transform(batch):
+            if "image" in batch:
+                batch["image"] = [transform(img) for img in batch["image"]]
+            return batch
+
+        ds.set_transform(apply_transform)
+    return ds
