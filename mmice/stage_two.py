@@ -34,6 +34,12 @@ logger = logging.getLogger(__name__)
 RNG = np.random.default_rng(seed=42)
 
 
+def get_texts(dr):
+    """Read the text column without decoding images.
+    With a transform set, dr["text"] decodes (and transforms) every row's image."""
+    return list(dr.select_columns(["text"])["text"])
+
+
 def get_stage_two_dir(args):
     """results_dir/<task>/edits[/<eval_task>]/<stage2_exp>"""
     eval_task = getattr(args.meta, "eval_task", None) or args.meta.task
@@ -45,7 +51,7 @@ def get_stage_two_dir(args):
 def filter_editable_rows(dr, task):
     if "race" in task:
         return dr
-    texts = dr["text"]
+    texts = get_texts(dr)
     keep = [j for j, x in enumerate(texts) if x and re.search("[a-zA-Z]", x)]
     return dr.select(keep)
 
@@ -265,7 +271,7 @@ def run_edit_test(args, predictor=None):
     # Load images if available (multimodal)
     has_images = "image" in dr.column_names
     dr = filter_editable_rows(dr, eval_task)
-    inputs = dr["text"]
+    inputs = get_texts(dr)
     extra_columns = args.misc.extra_columns
 
     input_indices = edit_indices(out_file, inputs)
@@ -295,8 +301,9 @@ def run_edit_test(args, predictor=None):
             writer.writerow(fieldnames)
         for _, i in tqdm(enumerate(input_indices), total=len(input_indices)):
             inp = inputs[i]
-            image = dr[i]["image"] if has_images else None
-            extra_vals = get_extra_values(dr[i], extra_columns)
+            row = dr[i]
+            image = row["image"] if has_images else None
+            extra_vals = get_extra_values(row, extra_columns)
             logger.info(wrap_text(f"ORIGINAL INSTANCE ({i}): {inp}"))
             start_time = time.time()
             error = False
